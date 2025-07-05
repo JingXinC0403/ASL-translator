@@ -95,9 +95,9 @@
 
   <script>
     const trainingFiles = [
-      "aslpart1.json",
-      "aslpart2.json",
-      "aslpart3.json"
+      "data/aslpart1.json",
+      "data/aslpart2.json",
+      "data/aslpart3.json"
     ];
 
     Promise.all(trainingFiles.map(file => fetch(file).then(res => res.json())))
