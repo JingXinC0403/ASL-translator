@@ -179,6 +179,7 @@
 
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
         if (sorted.length > 0 && sorted[0][1] > 0.7) {
+          console.log("Sorted scores:", sorted);
           const [pred, confidence] = sorted[0];
           if (pred !== lastConfirmed) {
             predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
