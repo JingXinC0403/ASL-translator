@@ -67,6 +67,7 @@
   <h1>🦙🦙🦙🦙 ASL Translator 🦙🦙🦙🦙</h1>
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas"></canvas>
+
   <div id="controls">
     <input type="text" id="labelInput" maxlength="15" placeholder="Type word or letter" />
     <button onclick="recordExample()">📸 Train</button>
@@ -81,6 +82,7 @@
     <button id="themeToggle" onclick="toggleTheme()">🌙</button>
     <p style="font-size: 0.9em; color: #aaa;">Train single letters or full words like “hello”, “thanks”</p>
   </div>
+
   <div id="output">
     <p><strong>Prediction:</strong> <span id="prediction">-</span></p>
     <div id="confirmBox" style="display:none;">
@@ -94,6 +96,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 
   <script>
+    // ✅ Pretrained ASL data loader
     const trainingFiles = [
       "data/aslpart1.json",
       "data/aslpart2.json",
@@ -106,10 +109,11 @@
         for (const key in merged) {
           localStorage.setItem(key, JSON.stringify(merged[key]));
         }
-        console.log("✅ All training data loaded.");
+        console.log("✅ All pre-trained ASL data loaded.");
       })
       .catch(err => console.error("❌ Failed to load training data", err));
 
+    // MediaPipe setup
     const videoElement = document.getElementById('video');
     const canvasElement = document.getElementById('canvas');
     const canvasCtx = canvasElement.getContext('2d');
@@ -179,7 +183,6 @@
 
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
         if (sorted.length > 0 && sorted[0][1] > 0.7) {
-          console.log("Sorted scores:", sorted);
           const [pred, confidence] = sorted[0];
           if (pred !== lastConfirmed) {
             predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
