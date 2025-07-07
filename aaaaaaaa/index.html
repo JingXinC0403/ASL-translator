@@ -98,9 +98,9 @@
   <script>
     // ✅ Pretrained ASL data loader
     const trainingFiles = [
-      "What am i doing/aslpart1.json",
-      "What am i doing/aslpart2.json",
-      "What am i doing/aslpart3.json"
+      "Whatamidoing/aslpart1.json",
+      "Whatamidoing/aslpart2.json",
+      "Whatamidoing/aslpart3.json"
     ];
 
     Promise.all(trainingFiles.map(file => fetch(file).then(res => res.json())))
