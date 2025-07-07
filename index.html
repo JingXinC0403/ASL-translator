@@ -64,7 +64,7 @@
   </style>
 </head>
 <body class="dark">
-  <h1>🦙 ASL Translator</h1>
+  <h1>🦙🦙🦙🦙 ASL Translator 🦙🦙🦙🦙</h1>
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas"></canvas>
 
@@ -91,21 +91,16 @@
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
   </div>
 
-  <!-- MediaPipe Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 
   <script>
-    function capitalize(str) {
-      return str.length > 0 ? str[0].toUpperCase() + str.slice(1) : str;
-    }
-
-    // Load pre-trained ASL data
+    // ✅ Pretrained ASL data loader
     const trainingFiles = [
-      "/What am i doing/aslpart1.json",
-      "/What am i doing/aslpart2.json",
-      "/What am i doing/aslpart3.json"
+      "What am i doing/aslpart1.json",
+      "What am i doing/aslpart2.json",
+      "What am i doing/aslpart3.json"
     ];
 
     Promise.all(trainingFiles.map(file => fetch(file).then(res => res.json())))
@@ -144,6 +139,21 @@
       minTrackingConfidence: 0.5
     });
 
+    function normalizeLandmarks(landmarks) {
+      const base = landmarks[0];
+      return landmarks.flatMap(pt => [pt.x - base.x, pt.y - base.y, pt.z - base.z]);
+    }
+
+    function cosineSimilarity(a, b) {
+      let dot = 0, aMag = 0, bMag = 0;
+      for (let i = 0; i < a.length; i++) {
+        dot += a[i] * b[i];
+        aMag += a[i] * a[i];
+        bMag += b[i] * b[i];
+      }
+      return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
+    }
+
     hands.onResults(results => {
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
@@ -161,10 +171,12 @@
           const samples = JSON.parse(localStorage.getItem(key));
           const label = key.slice(4);
           let maxSim = -1;
+
           for (const sample of samples) {
             const sim = cosineSimilarity(input, sample);
             if (sim > maxSim) maxSim = sim;
           }
+
           scores[label] = maxSim;
         }
 
@@ -172,7 +184,7 @@
         if (sorted.length > 0 && sorted[0][1] > 0.7) {
           const [pred, confidence] = sorted[0];
           if (pred !== lastConfirmed) {
-            predictionEl.textContent = `${capitalize(pred)} (${(confidence * 100).toFixed(1)}%)`;
+            predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
             lastPrediction = pred;
             confirmBox.style.display = "block";
           }
@@ -186,21 +198,6 @@
         confirmBox.style.display = "none";
       }
     });
-
-    function normalizeLandmarks(landmarks) {
-      const base = landmarks[0];
-      return landmarks.flatMap(pt => [pt.x - base.x, pt.y - base.y, pt.z - base.z]);
-    }
-
-    function cosineSimilarity(a, b) {
-      let dot = 0, aMag = 0, bMag = 0;
-      for (let i = 0; i < a.length; i++) {
-        dot += a[i] * b[i];
-        aMag += a[i] * a[i];
-        bMag += b[i] * b[i];
-      }
-      return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
-    }
 
     const camera = new Camera(videoElement, {
       onFrame: async () => await hands.send({ image: videoElement }),
@@ -281,7 +278,8 @@
 
     function confirmPrediction(confirmed) {
       if (confirmed && lastPrediction) {
-        sentenceEl.textContent += capitalize(lastPrediction);
+        // Capitalize the letter
+        sentenceEl.textContent += lastPrediction.charAt(0).toUpperCase() + lastPrediction.slice(1);
         lastConfirmed = lastPrediction;
       }
       confirmBox.style.display = "none";
