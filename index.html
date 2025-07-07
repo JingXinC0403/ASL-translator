@@ -98,9 +98,9 @@
   <script>
     // ✅ Pretrained ASL data loader
     const trainingFiles = [
-      "data/aslpart1.json",
-      "data/aslpart2.json",
-      "data/aslpart3.json"
+      "/What am i doing/aslpart1.json",
+      "/What am i doing/aslpart2.json",
+      "/What am i doing/aslpart3.json"
     ];
 
     Promise.all(trainingFiles.map(file => fetch(file).then(res => res.json())))
@@ -130,7 +130,7 @@
     let lastConfirmed = '';
 
     const hands = new Hands({
-      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      locateFile: file => https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}
     });
 
     hands.setOptions({
@@ -185,7 +185,7 @@
         if (sorted.length > 0 && sorted[0][1] > 0.7) {
           const [pred, confidence] = sorted[0];
           if (pred !== lastConfirmed) {
-            predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
+            predictionEl.textContent = ${pred} (${(confidence * 100).toFixed(1)}%);
             lastPrediction = pred;
             confirmBox.style.display = "block";
           }
@@ -216,7 +216,7 @@
       const data = JSON.parse(localStorage.getItem(key) || '[]');
       data.push(normalized);
       localStorage.setItem(key, JSON.stringify(data));
-      alert(`✅ Added training example for "${label}"`);
+      alert(✅ Added training example for "${label}");
     }
 
     function clearData() {
