@@ -67,6 +67,11 @@
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTrainingData(event)" />
     <button onclick="document.getElementById('importFile').click()">📅 Import Data</button>
     <button onclick="toggleTheme()">🌙</button>
+    
+    <!-- Added Buttons -->
+    <button onclick="backspace()">⬅️ Backspace</button>
+    <button onclick="clearSentence()">❌ Clear Sentence</button>
+    <button onclick="speakSentence()">🔊 Speak</button>
   </div>
 
   <div id="output">
@@ -110,6 +115,7 @@
     let currentLandmarks = null;
     let lastPrediction = '';
     let lastConfirmed = '';
+    let currentSentence = '';  // Added variable to store the sentence
 
     const hands = new Hands({
       locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -170,6 +176,10 @@
             predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
             lastPrediction = pred;
             confirmBox.style.display = "block";
+
+            // Update the sentence based on prediction
+            currentSentence += pred;
+            sentenceEl.textContent = currentSentence;
           }
         } else {
           predictionEl.textContent = "-";
@@ -254,6 +264,22 @@
         document.getElementById("themeToggle").textContent = "🌙";
         localStorage.setItem("theme", "dark");
       }
+    }
+
+    // New functions for added buttons:
+    function backspace() {
+      currentSentence = currentSentence.slice(0, -1);  // Remove the last character
+      sentenceEl.textContent = currentSentence;
+    }
+
+    function clearSentence() {
+      currentSentence = "";  // Clear the entire sentence
+      sentenceEl.textContent = currentSentence;
+    }
+
+    function speakSentence() {
+      const utterance = new SpeechSynthesisUtterance(currentSentence);
+      speechSynthesis.speak(utterance);
     }
 
     window.addEventListener('DOMContentLoaded', () => {
