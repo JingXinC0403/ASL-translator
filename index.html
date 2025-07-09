@@ -11,6 +11,10 @@
       text-align: center;
       background-color: #f7f7f7;
       transition: background 0.4s ease, color 0.4s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
     }
     .dark { background-color: #111; color: white; }
     .light { background-color: #f7f7f7; color: #111; }
@@ -23,18 +27,19 @@
       border-radius: 10px;
     }
     #controls {
-      position: absolute;
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      padding: 10px;
+      position: fixed;
       top: 10px;
-      right: 20px;  /* Moves buttons to the right side */
+      left: 0;
+      right: 0;
     }
-    #controls input[type="text"] {
-      padding: 8px;
-      font-size: 1em;
-      width: 140px;
-      text-align: center;
-      margin-right: 8px;
+    .left-buttons, .right-buttons {
+      display: flex;
     }
-    #controls button {
+    .left-buttons button, .right-buttons button {
       padding: 10px;
       font-size: 1.1em;
       background-color: #444;
@@ -44,14 +49,26 @@
       cursor: pointer;
       transition: background 0.3s, transform 0.2s;
     }
-    #controls button:hover {
+    .left-buttons button:hover, .right-buttons button:hover {
       background-color: #666;
       transform: scale(1.05);
     }
-    body.light #controls button { background-color: #ddd; color: black; }
-    body.light #controls button:hover { background-color: #bbb; }
-    #output { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(34, 34, 34, 0.9); padding: 10px 20px; border-radius: 10px; }
-    
+    body.light .left-buttons button, body.light .right-buttons button {
+      background-color: #ddd;
+      color: black;
+    }
+    body.light .left-buttons button:hover, body.light .right-buttons button:hover {
+      background-color: #bbb;
+    }
+    #output { 
+      position: absolute; 
+      bottom: 10px; 
+      left: 50%; 
+      transform: translateX(-50%); 
+      background: rgba(34, 34, 34, 0.9); 
+      padding: 10px 20px; 
+      border-radius: 10px; 
+    }
     /* Media Queries for Smaller Screens */
     @media (max-width: 600px) {
       #controls button {
@@ -71,18 +88,23 @@
   <canvas id="canvas"></canvas>
 
   <div id="controls">
-    <input type="text" id="labelInput" maxlength="15" placeholder="Type word or letter" />
-    <button onclick="trainGesture()">📸 Train Gesture</button>
-    <button onclick="clearData()">❌ Clear All Data</button>
-    <button onclick="exportTrainingData()">📄 Export Data</button>
-    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTrainingData(event)" />
-    <button onclick="document.getElementById('importFile').click()">📅 Import Data</button>
-    <button onclick="toggleTheme()">🌙</button>
-    
-    <!-- Added Buttons -->
-    <button onclick="backspace()">⬅️ Backspace</button>
-    <button onclick="clearSentence()">❌ Clear Sentence</button>
-    <button onclick="speakSentence()">🔊 Speak</button>
+    <!-- Left Side Buttons -->
+    <div class="left-buttons">
+      <input type="text" id="labelInput" maxlength="15" placeholder="Type word or letter" />
+      <button onclick="trainGesture()">📸 Train Gesture</button>
+      <button onclick="clearData()">❌ Clear All Data</button>
+    </div>
+
+    <!-- Right Side Buttons -->
+    <div class="right-buttons">
+      <button onclick="exportTrainingData()">📄 Export Data</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTrainingData(event)" />
+      <button onclick="document.getElementById('importFile').click()">📅 Import Data</button>
+      <button onclick="toggleTheme()">🌙</button>
+      <button onclick="backspace()">⬅️ Backspace</button>
+      <button onclick="clearSentence()">❌ Clear Sentence</button>
+      <button onclick="speakSentence()">🔊 Speak</button>
+    </div>
   </div>
 
   <div id="output">
@@ -90,7 +112,6 @@
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
   </div>
 
-  <!-- Hidden confirm box to show if prediction is confirmed -->
   <div id="confirmBox" style="display:none; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background-color: #333; color: white; padding: 8px 20px; border-radius: 5px;">
     Confirm Prediction
   </div>
