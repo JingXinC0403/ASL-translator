@@ -15,6 +15,7 @@
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
+      padding-left: 200px; /* Creates space for buttons on the left */
     }
     .dark { background-color: #111; color: white; }
     .light { background-color: #f7f7f7; color: #111; }
@@ -82,7 +83,7 @@
   <div id="controls">
     <input type="text" id="labelInput" maxlength="15" placeholder="Type word or letter" />
     <button onclick="trainGesture()">📸 Train Gesture</button>
-    <button onclick="clearData()">❌ Clear All Data</button>
+    <button onclick="clearData()">🗑️ Clear All Data</button>
     <button onclick="exportTrainingData()">📄 Export Data</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTrainingData(event)" />
     <button onclick="document.getElementById('importFile').click()">📅 Import Data</button>
