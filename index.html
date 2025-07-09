@@ -25,8 +25,7 @@
     #controls {
       position: absolute;
       top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
+      right: 20px;  /* Moves buttons to the right side */
     }
     #controls input[type="text"] {
       padding: 8px;
@@ -52,6 +51,18 @@
     body.light #controls button { background-color: #ddd; color: black; }
     body.light #controls button:hover { background-color: #bbb; }
     #output { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(34, 34, 34, 0.9); padding: 10px 20px; border-radius: 10px; }
+    
+    /* Media Queries for Smaller Screens */
+    @media (max-width: 600px) {
+      #controls button {
+        font-size: 1em;
+        padding: 8px;
+      }
+      #labelInput {
+        width: 120px;
+        font-size: 0.9em;
+      }
+    }
   </style>
 </head>
 <body class="dark">
@@ -77,6 +88,11 @@
   <div id="output">
     <p><strong>Prediction:</strong> <span id="prediction">-</span></p>
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
+  </div>
+
+  <!-- Hidden confirm box to show if prediction is confirmed -->
+  <div id="confirmBox" style="display:none; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background-color: #333; color: white; padding: 8px 20px; border-radius: 5px;">
+    Confirm Prediction
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
@@ -180,6 +196,7 @@
             // Update the sentence based on prediction
             currentSentence += pred;
             sentenceEl.textContent = currentSentence;
+            lastConfirmed = pred;
           }
         } else {
           predictionEl.textContent = "-";
@@ -199,6 +216,7 @@
     });
     camera.start();
 
+    // Function to train gesture
     function trainGesture() {
       if (!currentLandmarks) return alert("✋ Show your hand clearly to train!");
       const label = labelInput.value.trim().toLowerCase();
@@ -213,6 +231,7 @@
       alert(`✅ Added training example for "${label}"`);
     }
 
+    // Function to clear all training data
     function clearData() {
       if (confirm("Are you sure you want to delete ALL training data?")) {
         Object.keys(localStorage).forEach(k => {
@@ -222,6 +241,7 @@
       }
     }
 
+    // Function to export training data
     function exportTrainingData() {
       const data = {};
       Object.keys(localStorage).forEach(k => {
@@ -236,6 +256,7 @@
       URL.revokeObjectURL(url);
     }
 
+    // Function to import training data
     function importTrainingData(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -252,16 +273,15 @@
       reader.readAsText(file);
     }
 
+    // Function to toggle theme
     function toggleTheme() {
       const body = document.body;
       const isDark = body.classList.contains("dark");
       if (isDark) {
         body.classList.replace("dark", "light");
-        document.getElementById("themeToggle").textContent = "🌞";
         localStorage.setItem("theme", "light");
       } else {
         body.classList.replace("light", "dark");
-        document.getElementById("themeToggle").textContent = "🌙";
         localStorage.setItem("theme", "dark");
       }
     }
@@ -285,7 +305,6 @@
     window.addEventListener('DOMContentLoaded', () => {
       const theme = localStorage.getItem("theme") || "dark";
       document.body.classList.add(theme);
-      document.getElementById("themeToggle").textContent = theme === "dark" ? "🌙" : "🌞";
     });
   </script>
 </body>
