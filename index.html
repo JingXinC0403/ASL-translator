@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ASL Translator</title>
+  <title>🦙 ASL Translator 🦙</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: sans-serif;
+      font-family: 'Arial', sans-serif;
       text-align: center;
-      overflow: hidden;
+      background-color: #f7f7f7;
       transition: background 0.4s ease, color 0.4s ease;
     }
-    body.dark { background: #111; color: white; }
-    body.light { background: #f7f7f7; color: #111; }
+    .dark { background-color: #111; color: white; }
+    .light { background-color: #f7f7f7; color: #111; }
     h1 { margin: 10px 0; }
     #video, #canvas {
       position: absolute;
@@ -36,58 +36,41 @@
       margin-right: 8px;
     }
     #controls button {
-      padding: 8px 12px;
-      margin: 4px 2px;
-      font-size: 1em;
-      background: #444;
+      padding: 10px;
+      font-size: 1.1em;
+      background-color: #444;
       color: white;
-      border: none;
-      border-radius: 6px;
+      border-radius: 8px;
+      margin: 8px;
       cursor: pointer;
-      transition: background 0.3s, color 0.3s;
+      transition: background 0.3s, transform 0.2s;
     }
-    #controls button:hover { background: #666; }
-    body.light #controls button { background: #ddd; color: black; }
-    body.light #controls button:hover { background: #bbb; }
-    #output {
-      position: absolute;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(34, 34, 34, 0.9);
-      padding: 10px 20px;
-      border-radius: 10px;
-      transition: background 0.4s ease;
+    #controls button:hover {
+      background-color: #666;
+      transform: scale(1.05);
     }
-    body.light #output { background: rgba(255, 255, 255, 0.9); }
-    #confirmBox { margin-top: 10px; }
+    body.light #controls button { background-color: #ddd; color: black; }
+    body.light #controls button:hover { background-color: #bbb; }
+    #output { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(34, 34, 34, 0.9); padding: 10px 20px; border-radius: 10px; }
   </style>
 </head>
 <body class="dark">
-  <h1>🦙🦙🦙🦙 ASL Translator 🦙🦙🦙🦙</h1>
+  <h1>🦙🦙🦙 ASL Translator 🦙🦙🦙</h1>
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas"></canvas>
 
   <div id="controls">
     <input type="text" id="labelInput" maxlength="15" placeholder="Type word or letter" />
-    <button onclick="recordExample()">📸 Train</button>
-    <button onclick="clearData()">❌ Delete All Data</button>
+    <button onclick="trainGesture()">📸 Train Gesture</button>
+    <button onclick="clearData()">❌ Clear All Data</button>
     <button onclick="exportTrainingData()">📄 Export Data</button>
-    <button onclick="document.getElementById('importFile').click()">📅 Import Data</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTrainingData(event)" />
-    <button onclick="backspace()">⌫ Backspace</button>
-    <button onclick="clearSentence()">❌ Delete Sentence</button>
-    <button onclick="addSpace()">␣ Space</button>
-    <button onclick="speakSentence()">🔊 Speak</button>
-    <button id="themeToggle" onclick="toggleTheme()">🌙</button>
-    <p style="font-size: 0.9em; color: #aaa;">Train single letters or full words like “hello”, “thanks”</p>
+    <button onclick="document.getElementById('importFile').click()">📅 Import Data</button>
+    <button onclick="toggleTheme()">🌙</button>
   </div>
 
   <div id="output">
     <p><strong>Prediction:</strong> <span id="prediction">-</span></p>
-    <div id="confirmBox" style="display:none;">
-      <p>Is this correct? <button onclick="confirmPrediction(true)">Yes</button> <button onclick="confirmPrediction(false)">No</button></p>
-    </div>
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
   </div>
 
@@ -206,15 +189,17 @@
     });
     camera.start();
 
-    function recordExample() {
+    function trainGesture() {
       if (!currentLandmarks) return alert("✋ Show your hand clearly to train!");
       const label = labelInput.value.trim().toLowerCase();
       if (!label) return alert("Please enter a label (letter/word)");
+
       const key = "asl_" + label;
       const normalized = normalizeLandmarks(currentLandmarks);
-      const data = JSON.parse(localStorage.getItem(key) || '[]');
+      let data = JSON.parse(localStorage.getItem(key) || '[]');
       data.push(normalized);
       localStorage.setItem(key, JSON.stringify(data));
+
       alert(`✅ Added training example for "${label}"`);
     }
 
@@ -255,34 +240,6 @@
         alert("📁 Training data imported.");
       };
       reader.readAsText(file);
-    }
-
-    function backspace() {
-      sentenceEl.textContent = sentenceEl.textContent.slice(0, -1);
-    }
-
-    function clearSentence() {
-      sentenceEl.textContent = "";
-    }
-
-    function addSpace() {
-      sentenceEl.textContent += " ";
-    }
-
-    function speakSentence() {
-      const sentence = sentenceEl.textContent;
-      if (!sentence) return;
-      const utter = new SpeechSynthesisUtterance(sentence);
-      speechSynthesis.speak(utter);
-    }
-
-    function confirmPrediction(confirmed) {
-      if (confirmed && lastPrediction) {
-        // Capitalize the letter
-        sentenceEl.textContent += lastPrediction.charAt(0).toUpperCase() + lastPrediction.slice(1);
-        lastConfirmed = lastPrediction;
-      }
-      confirmBox.style.display = "none";
     }
 
     function toggleTheme() {
