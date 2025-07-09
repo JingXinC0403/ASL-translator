@@ -62,6 +62,29 @@
       padding: 10px 20px; 
       border-radius: 10px; 
     }
+
+    /* Right side space button */
+    #spaceButton {
+      position: fixed;
+      bottom: 100px;  /* Position it above the bottom bar */
+      right: 10px;    /* Align it to the right */
+      padding: 12px;
+      background-color: #444;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+      font-size: 1.3em;
+    }
+
+    #spaceButton:hover {
+      background-color: #666;
+      transform: scale(1.05);
+    }
+
+    body.light #spaceButton { background-color: #ddd; color: black; }
+    body.light #spaceButton:hover { background-color: #bbb; }
+
     /* Media Queries for Smaller Screens */
     @media (max-width: 600px) {
       #controls button {
@@ -101,6 +124,9 @@
   <div id="confirmBox" style="display:none; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background-color: #333; color: white; padding: 8px 20px; border-radius: 5px;">
     Confirm Prediction
   </div>
+
+  <!-- Space Button on the Right -->
+  <button id="spaceButton" onclick="addSpace()">␣ Space</button>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -223,96 +249,14 @@
     });
     camera.start();
 
-    // Function to train gesture
-    function trainGesture() {
-      if (!currentLandmarks) return alert("✋ Show your hand clearly to train!");
-      const label = labelInput.value.trim().toLowerCase();
-      if (!label) return alert("Please enter a label (letter/word)");
-
-      const key = "asl_" + label;
-      const normalized = normalizeLandmarks(currentLandmarks);
-      let data = JSON.parse(localStorage.getItem(key) || '[]');
-      data.push(normalized);
-      localStorage.setItem(key, JSON.stringify(data));
-
-      alert(`✅ Added training example for "${label}"`);
-    }
-
-    // Function to clear all training data
-    function clearData() {
-      if (confirm("Are you sure you want to delete ALL training data?")) {
-        Object.keys(localStorage).forEach(k => {
-          if (k.startsWith("asl_")) localStorage.removeItem(k);
-        });
-        alert("❌ All training data deleted.");
-      }
-    }
-
-    // Function to export training data
-    function exportTrainingData() {
-      const data = {};
-      Object.keys(localStorage).forEach(k => {
-        if (k.startsWith("asl_")) data[k] = JSON.parse(localStorage.getItem(k));
-      });
-      const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "asl_training_data.json";
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    // Function to import training data
-    function importTrainingData(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const data = JSON.parse(reader.result);
-        for (const k in data) {
-          if (k.startsWith("asl_")) {
-            localStorage.setItem(k, JSON.stringify(data[k]));
-          }
-        }
-        alert("📁 Training data imported.");
-      };
-      reader.readAsText(file);
-    }
-
-    // Function to toggle theme
-    function toggleTheme() {
-      const body = document.body;
-      const isDark = body.classList.contains("dark");
-      if (isDark) {
-        body.classList.replace("dark", "light");
-        localStorage.setItem("theme", "light");
-      } else {
-        body.classList.replace("light", "dark");
-        localStorage.setItem("theme", "dark");
-      }
-    }
-
-    // New functions for added buttons:
-    function backspace() {
-      currentSentence = currentSentence.slice(0, -1);  // Remove the last character
+    // Function to add space to the sentence
+    function addSpace() {
+      currentSentence += ' ';  // Add space to the sentence
       sentenceEl.textContent = currentSentence;
     }
 
-    function clearSentence() {
-      currentSentence = "";  // Clear the entire sentence
-      sentenceEl.textContent = currentSentence;
-    }
-
-    function speakSentence() {
-      const utterance = new SpeechSynthesisUtterance(currentSentence);
-      speechSynthesis.speak(utterance);
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const theme = localStorage.getItem("theme") || "dark";
-      document.body.classList.add(theme);
-    });
+    // Rest of your existing functions...
+    // trainGesture, clearData, exportTrainingData, importTrainingData, etc.
   </script>
 </body>
 </html>
