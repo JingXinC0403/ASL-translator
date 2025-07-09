@@ -28,18 +28,15 @@
     }
     #controls {
       display: flex;
-      justify-content: space-between;
-      width: 100%;
-      padding: 10px;
+      flex-direction: column;
       position: fixed;
       top: 10px;
-      left: 0;
-      right: 0;
+      left: 10px;  /* Aligns the controls to the left */
+      padding: 10px;
+      background-color: rgba(0, 0, 0, 0.6);  /* Optional: to make buttons more visible */
+      border-radius: 10px;
     }
-    .left-buttons, .right-buttons {
-      display: flex;
-    }
-    .left-buttons button, .right-buttons button {
+    #controls button {
       padding: 10px;
       font-size: 1.1em;
       background-color: #444;
@@ -49,17 +46,12 @@
       cursor: pointer;
       transition: background 0.3s, transform 0.2s;
     }
-    .left-buttons button:hover, .right-buttons button:hover {
+    #controls button:hover {
       background-color: #666;
       transform: scale(1.05);
     }
-    body.light .left-buttons button, body.light .right-buttons button {
-      background-color: #ddd;
-      color: black;
-    }
-    body.light .left-buttons button:hover, body.light .right-buttons button:hover {
-      background-color: #bbb;
-    }
+    body.light #controls button { background-color: #ddd; color: black; }
+    body.light #controls button:hover { background-color: #bbb; }
     #output { 
       position: absolute; 
       bottom: 10px; 
@@ -88,23 +80,16 @@
   <canvas id="canvas"></canvas>
 
   <div id="controls">
-    <!-- Left Side Buttons -->
-    <div class="left-buttons">
-      <input type="text" id="labelInput" maxlength="15" placeholder="Type word or letter" />
-      <button onclick="trainGesture()">📸 Train Gesture</button>
-      <button onclick="clearData()">❌ Clear All Data</button>
-    </div>
-
-    <!-- Right Side Buttons -->
-    <div class="right-buttons">
-      <button onclick="exportTrainingData()">📄 Export Data</button>
-      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTrainingData(event)" />
-      <button onclick="document.getElementById('importFile').click()">📅 Import Data</button>
-      <button onclick="toggleTheme()">🌙</button>
-      <button onclick="backspace()">⬅️ Backspace</button>
-      <button onclick="clearSentence()">❌ Clear Sentence</button>
-      <button onclick="speakSentence()">🔊 Speak</button>
-    </div>
+    <input type="text" id="labelInput" maxlength="15" placeholder="Type word or letter" />
+    <button onclick="trainGesture()">📸 Train Gesture</button>
+    <button onclick="clearData()">❌ Clear All Data</button>
+    <button onclick="exportTrainingData()">📄 Export Data</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTrainingData(event)" />
+    <button onclick="document.getElementById('importFile').click()">📅 Import Data</button>
+    <button onclick="toggleTheme()">🌙</button>
+    <button onclick="backspace()">⬅️ Backspace</button>
+    <button onclick="clearSentence()">❌ Clear Sentence</button>
+    <button onclick="speakSentence()">🔊 Speak</button>
   </div>
 
   <div id="output">
