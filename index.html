@@ -18,12 +18,14 @@
       min-height: 100vh;
     }
 
-    h1 { margin: 10px 0; text-align: center; }
+    h1 { 
+      margin: 20px 0;
+      text-align: center; /* Center the title */
+    }
+
     #video, #canvas {
-      position: absolute;
-      top: 60px;
-      left: 50%;
-      transform: translateX(-50%);
+      position: relative;
+      margin-top: 20px;  /* Space from the title */
       border-radius: 10px;
       width: 640px; /* Set video size */
       height: 480px; /* Set video size */
