@@ -9,27 +9,32 @@
     body {
       font-family: 'Arial', sans-serif;
       text-align: center;
-      background-color: #000000; /* Set background to black */
-      transition: background 0.4s ease, color 0.4s ease;
+      background-color: #000;
+      color: white;
       display: flex;
       flex-direction: column;
-      justify-content: center; /* Vertically center */
-      align-items: center; /* Horizontally center */
+      justify-content: center;
+      align-items: center;
       min-height: 100vh;
-      color: white; /* Set text color to white for visibility on dark background */
+      transition: background 0.3s, color 0.3s;
     }
 
-    h1 { 
+    body.light {
+      background-color: #f0f0f0;
+      color: black;
+    }
+
+    h1 {
       margin: 20px 0;
-      text-align: center; /* Center the title */
     }
 
     #video, #canvas {
-      position: relative;
-      margin-top: 20px;  /* Space from the title */
-      border-radius: 10px;
-      width: 640px; /* Set video size */
-      height: 480px; /* Set video size */
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 640px;
+      height: 480px;
     }
 
     #controls {
@@ -49,13 +54,12 @@
       background-color: #444;
       color: white;
       border-radius: 8px;
-      margin: 8px;
+      margin: 8px 0;
       cursor: pointer;
-      transition: background 0.3s, transform 0.2s;
     }
+
     #controls button:hover {
       background-color: #666;
-      transform: scale(1.05);
     }
 
     #output {
@@ -70,33 +74,29 @@
 
     #spaceButton {
       position: fixed;
-      bottom: 30px; /* Adjust to make space from the bottom */
-      left: 10px; /* Position it on the left side */
+      bottom: 100px;
+      left: 10px;
       padding: 12px;
       background-color: #444;
       color: white;
       border-radius: 8px;
       cursor: pointer;
-      transition: background 0.3s, transform 0.2s;
       font-size: 1.3em;
     }
 
-    /* Styles for the light mode */
-    body.light {
-      background-color: #f7f7f7; /* Light background for light mode */
-      color: #111; /* Text color for light mode */
-    }
-    body.light #controls button {
-      background-color: #ddd;
+    body.light #controls,
+    body.light #spaceButton {
+      background-color: rgba(255, 255, 255, 0.8);
       color: black;
     }
-    body.light #spaceButton {
-      background-color: #ddd;
+
+    body.light #output {
+      background: rgba(255, 255, 255, 0.9);
       color: black;
     }
   </style>
 </head>
-<body class="dark">  <!-- Start in dark mode -->
+<body class="dark">
   <h1>🐈🐈🐈 ASL Translator 🐈🐈🐈</h1>
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas"></canvas>
@@ -117,10 +117,6 @@
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
   </div>
 
-  <div id="confirmBox" style="display:none;">
-    Confirm Prediction
-  </div>
-
   <button id="spaceButton" onclick="addSpace()">␣ Space</button>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
@@ -131,12 +127,17 @@
     let trainingData = {};
     let currentLandmarks = null;
     let currentSentence = '';
+    let lastPrediction = '';
+    let lastAddTime = 0;
 
     const videoElement = document.getElementById('video');
     const canvasElement = document.getElementById('canvas');
     const canvasCtx = canvasElement.getContext('2d');
     const predictionEl = document.getElementById('prediction');
     const sentenceEl = document.getElementById('sentence');
+
+    canvasElement.width = 640;
+    canvasElement.height = 480;
 
     const hands = new Hands({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
     hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.5 });
@@ -174,7 +175,6 @@
             const sim = cosineSimilarity(input, sample);
             if (sim > maxSim) maxSim = sim;
           }
-
           scores[label] = maxSim;
         }
 
@@ -182,15 +182,26 @@
         if (sorted.length > 0 && sorted[0][1] > 0.9) {
           const [pred, confidence] = sorted[0];
           predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
-          currentSentence += pred;
-          sentenceEl.textContent = currentSentence;
+
+          const now = Date.now();
+          if (pred !== lastPrediction || now - lastAddTime > 1000) {
+            currentSentence += pred;
+            sentenceEl.textContent = currentSentence;
+            lastPrediction = pred;
+            lastAddTime = now;
+          }
         } else {
           predictionEl.textContent = "-";
+          lastPrediction = '';
         }
       }
     });
 
-    const camera = new Camera(videoElement, { onFrame: async () => await hands.send({ image: videoElement }), width: 640, height: 480 });
+    const camera = new Camera(videoElement, {
+      onFrame: async () => await hands.send({ image: videoElement }),
+      width: 640,
+      height: 480
+    });
     camera.start();
 
     function addSpace() {
@@ -200,26 +211,22 @@
 
     function trainGesture() {
       const label = document.getElementById('labelInput').value.trim();
-      if (!label) {
-        alert('Please enter a label.');
-        return;
-      }
-
-      if (!currentLandmarks) {
-        alert('No landmarks detected.');
-        return;
-      }
+      if (!label) return alert('Please enter a label.');
+      if (!currentLandmarks) return alert('No landmarks detected.');
 
       const normalized = normalizeLandmarks(currentLandmarks);
       trainingData[label] = trainingData[label] || [];
       trainingData[label].push(normalized);
+      alert(`Gesture for "${label}" trained!`);
+    }
 
-      alert(`Gesture for ${label} trained!`);
+    function clearData() {
+      trainingData = {};
+      alert("All training data cleared.");
     }
 
     function exportTrainingData() {
-      const data = trainingData;
-      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(trainingData)], { type: 'application/json' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = 'asl_data.json';
@@ -227,8 +234,8 @@
     }
 
     function toggleTheme() {
-      document.body.classList.toggle('dark');
       document.body.classList.toggle('light');
+      document.body.classList.toggle('dark');
     }
 
     function backspace() {
@@ -242,8 +249,7 @@
     }
 
     function speakSentence() {
-      const sentence = currentSentence;
-      const utterance = new SpeechSynthesisUtterance(sentence);
+      const utterance = new SpeechSynthesisUtterance(currentSentence);
       speechSynthesis.speak(utterance);
     }
   </script>
