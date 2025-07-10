@@ -17,6 +17,7 @@
       min-height: 100vh;
       padding-left: 200px; /* Creates space for buttons on the left */
     }
+
     /* Dark Mode */
     body.dark {
       background-color: #111;
@@ -42,9 +43,9 @@
       flex-direction: column;
       position: fixed;
       top: 10px;
-      left: 10px;  /* Aligns the controls to the left */
+      left: 10px;
       padding: 10px;
-      background-color: rgba(0, 0, 0, 0.6);  /* Optional: to make buttons more visible */
+      background-color: rgba(0, 0, 0, 0.6);
       border-radius: 10px;
     }
     #controls button {
@@ -66,21 +67,21 @@
     body.light #controls button { background-color: #ddd; color: black; }
     body.light #controls button:hover { background-color: #bbb; }
 
-    #output { 
-      position: absolute; 
-      bottom: 10px; 
-      left: 50%; 
-      transform: translateX(-50%); 
-      background: rgba(34, 34, 34, 0.9); 
-      padding: 10px 20px; 
-      border-radius: 10px; 
+    #output {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(34, 34, 34, 0.9);
+      padding: 10px 20px;
+      border-radius: 10px;
     }
 
     /* Right side space button */
     #spaceButton {
       position: fixed;
-      bottom: 100px;  /* Position it above the bottom bar */
-      right: 10px;    /* Align it to the right */
+      bottom: 100px;
+      right: 10px;
       padding: 12px;
       background-color: #444;
       color: white;
@@ -178,7 +179,7 @@
     let currentLandmarks = null;
     let lastPrediction = '';
     let lastConfirmed = '';
-    let currentSentence = '';  // Added variable to store the sentence
+    let currentSentence = '';
 
     const hands = new Hands({
       locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -236,7 +237,7 @@
         if (sorted.length > 0 && sorted[0][1] > 0.85) {
           const [pred, confidence] = sorted[0];
           if (pred !== lastConfirmed) {
-            predictionEl.textContent = `${pred} (${(confidence * 90).toFixed(1)}%)`;
+            predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
             lastPrediction = pred;
             confirmBox.style.display = "block";
 
@@ -265,7 +266,7 @@
 
     // Add Space to Sentence
     function addSpace() {
-      currentSentence += ' ';  // Add space to the sentence
+      currentSentence += ' ';
       sentenceEl.textContent = currentSentence;
     }
 
@@ -319,7 +320,7 @@
     function importTrainingData(event) {
       const file = event.target.files[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
       reader.onload = function(e) {
         const data = JSON.parse(e.target.result);
