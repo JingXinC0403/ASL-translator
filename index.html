@@ -233,10 +233,10 @@
         }
 
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-        if (sorted.length > 0 && sorted[0][1] > 0.7) {
+        if (sorted.length > 0 && sorted[0][1] > 0.85) {
           const [pred, confidence] = sorted[0];
           if (pred !== lastConfirmed) {
-            predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
+            predictionEl.textContent = `${pred} (${(confidence * 90).toFixed(1)}%)`;
             lastPrediction = pred;
             confirmBox.style.display = "block";
 
