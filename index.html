@@ -151,23 +151,25 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 
   <script>
-    // ✅ Pretrained ASL data loader
-    const trainingFiles = [
-      "Whatamidoing/aslpart1.json",
-      "Whatamidoing/aslpart2.json",
-      "Whatamidoing/aslpart3.json"
-    ];
+    let trainingData = {};
 
-    Promise.all(trainingFiles.map(file => fetch(file).then(res => res.json())))
-      .then(parts => {
-        const merged = Object.assign({}, ...parts);
-        for (const key in merged) {
-          localStorage.setItem(key, JSON.stringify(merged[key]));
+    // Load imported JSON data
+    function importTrainingData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = JSON.parse(e.target.result);
+        for (const key in data) {
+          trainingData[key] = data[key];
         }
-        console.log("✅ All pre-trained ASL data loaded.");
-      })
-      .catch(err => console.error("❌ Failed to load training data", err));
+        alert('Data imported successfully.');
+      };
+      reader.readAsText(file);
+    }
 
+    // Initialize video and canvas elements for hand tracking
     const videoElement = document.getElementById('video');
     const canvasElement = document.getElementById('canvas');
     const canvasCtx = canvasElement.getContext('2d');
@@ -222,13 +224,9 @@
         const input = normalizeLandmarks(landmarks);
         const scores = {};
 
-                for (const key in localStorage) {
-          if (!key.startsWith("asl_")) continue;
-          const samples = JSON.parse(localStorage.getItem(key));
-          const label = key.slice(4);
+        for (const label in trainingData) {
           let maxSim = -1;
-
-          for (const sample of samples) {
+          for (const sample of trainingData[label]) {
             const sim = cosineSimilarity(input, sample);
             if (sim > maxSim) maxSim = sim;
           }
@@ -288,10 +286,8 @@
       }
 
       const normalized = normalizeLandmarks(currentLandmarks);
-      const key = 'asl_' + label;
-      let trainingData = JSON.parse(localStorage.getItem(key)) || [];
-      trainingData.push(normalized);
-      localStorage.setItem(key, JSON.stringify(trainingData));
+      trainingData[label] = trainingData[label] || [];
+      trainingData[label].push(normalized);
 
       alert(`Gesture for ${label} trained!`);
     }
@@ -299,6 +295,7 @@
     // Clear All Training Data
     function clearData() {
       if (confirm('Are you sure you want to clear all training data?')) {
+        trainingData = {};
         localStorage.clear();
         alert('All data cleared.');
       }
@@ -306,33 +303,12 @@
 
     // Export Data to JSON
     function exportTrainingData() {
-      const data = {};
-      for (const key in localStorage) {
-        if (key.startsWith("asl_")) {
-          data[key] = JSON.parse(localStorage.getItem(key));
-        }
-      }
+      const data = trainingData;
       const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = 'asl_data.json';
       link.click();
-    }
-
-    // Import Training Data
-    function importTrainingData(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const data = JSON.parse(e.target.result);
-        for (const key in data) {
-          localStorage.setItem(key, JSON.stringify(data[key]));
-        }
-        alert('Data imported successfully.');
-      };
-      reader.readAsText(file);
     }
 
     // Toggle Theme (Dark/Light)
@@ -362,5 +338,3 @@
   </script>
 </body>
 </html>
-
-
