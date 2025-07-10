@@ -249,13 +249,98 @@
     });
     camera.start();
 
-    // Function to add space to the sentence
+    // Add Space to Sentence
     function addSpace() {
       currentSentence += ' ';  // Add space to the sentence
       sentenceEl.textContent = currentSentence;
     }
 
-    // Rest of your existing functions...
+    // Train Gesture
+    function trainGesture() {
+      const label = labelInput.value.trim();
+      if (!label) {
+        alert('Please enter a label.');
+        return;
+      }
+
+      // Capture the landmarks
+      if (!currentLandmarks) {
+        alert('No landmarks detected.');
+        return;
+      }
+
+      const normalized = normalizeLandmarks(currentLandmarks);
+      const key = 'asl_' + label;
+      let trainingData = JSON.parse(localStorage.getItem(key)) || [];
+      trainingData.push(normalized);
+      localStorage.setItem(key, JSON.stringify(trainingData));
+
+      alert(`Gesture for ${label} trained!`);
+    }
+
+    // Clear All Training Data
+    function clearData() {
+      if (confirm('Are you sure you want to clear all training data?')) {
+        localStorage.clear();
+        alert('All data cleared.');
+      }
+    }
+
+    // Export Data to JSON
+    function exportTrainingData() {
+      const data = {};
+      for (const key in localStorage) {
+        if (key.startsWith("asl_")) {
+          data[key] = JSON.parse(localStorage.getItem(key));
+        }
+      }
+      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'asl_data.json';
+      link.click();
+    }
+
+    // Import Training Data
+    function importTrainingData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = JSON.parse(e.target.result);
+        for (const key in data) {
+          localStorage.setItem(key, JSON.stringify(data[key]));
+        }
+        alert('Data imported successfully.');
+      };
+      reader.readAsText(file);
+    }
+
+    // Toggle Theme (Dark/Light)
+    function toggleTheme() {
+      document.body.classList.toggle('dark');
+      document.body.classList.toggle('light');
+    }
+
+    // Backspace (Delete last character)
+    function backspace() {
+      currentSentence = currentSentence.slice(0, -1);
+      sentenceEl.textContent = currentSentence;
+    }
+
+    // Clear Sentence
+    function clearSentence() {
+      currentSentence = '';
+      sentenceEl.textContent = currentSentence;
+    }
+
+    // Speak Sentence
+    function speakSentence() {
+      const sentence = currentSentence;
+      const utterance = new SpeechSynthesisUtterance(sentence);
+      speechSynthesis.speak(utterance);
+    }
   </script>
 </body>
 </html>
