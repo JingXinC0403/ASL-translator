@@ -16,32 +16,19 @@
       justify-content: center; /* Vertically center */
       align-items: center; /* Horizontally center */
       min-height: 100vh;
-      padding-left: 200px; /* Creates space for buttons on the left */
     }
 
-    /* Dark Mode */
-    body.dark {
-      background-color: #111;
-      color: white;
-    }
-
-    /* Light Mode */
-    body.light {
-      background-color: #f7f7f7;
-      color: #111;
-    }
-
-    h1 { 
-      margin: 10px 0; 
-      text-align: center; /* Center the title */
-    }
+    h1 { margin: 10px 0; text-align: center; }
     #video, #canvas {
       position: absolute;
       top: 60px;
-      left: 25%;
+      left: 50%;
       transform: translateX(-50%);
       border-radius: 10px;
+      width: 640px; /* Set video size */
+      height: 480px; /* Set video size */
     }
+
     #controls {
       display: flex;
       flex-direction: column;
@@ -52,6 +39,7 @@
       background-color: rgba(0, 0, 0, 0.6);
       border-radius: 10px;
     }
+
     #controls button {
       padding: 10px;
       font-size: 1.1em;
@@ -67,10 +55,6 @@
       transform: scale(1.05);
     }
 
-    /* Light mode button styles */
-    body.light #controls button { background-color: #ddd; color: black; }
-    body.light #controls button:hover { background-color: #bbb; }
-
     #output {
       position: absolute;
       bottom: 10px;
@@ -81,7 +65,6 @@
       border-radius: 10px;
     }
 
-    /* Right side space button */
     #spaceButton {
       position: fixed;
       bottom: 100px;
@@ -95,29 +78,17 @@
       font-size: 1.3em;
     }
 
-    #spaceButton:hover {
-      background-color: #666;
-      transform: scale(1.05);
+    body.light #controls button {
+      background-color: #ddd;
+      color: black;
     }
-
-    /* Light mode button styles */
-    body.light #spaceButton { background-color: #ddd; color: black; }
-    body.light #spaceButton:hover { background-color: #bbb; }
-
-    /* Media Queries for Smaller Screens */
-    @media (max-width: 600px) {
-      #controls button {
-        font-size: 1em;
-        padding: 8px;
-      }
-      #labelInput {
-        width: 120px;
-        font-size: 0.9em;
-      }
+    body.light #spaceButton {
+      background-color: #ddd;
+      color: black;
     }
   </style>
 </head>
-<body class="dark">  <!-- Start in dark mode -->
+<body class="dark">
   <h1>🐈🐈🐈 ASL Translator 🐈🐈🐈</h1>
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas"></canvas>
@@ -127,9 +98,7 @@
     <button onclick="trainGesture()">📸 Train Gesture</button>
     <button onclick="clearData()">🗑️ Clear All Data</button>
     <button onclick="exportTrainingData()">📄 Export Data</button>
-    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTrainingData(event)" />
-    <button onclick="document.getElementById('importFile').click()">📅 Import Data</button>
-    <button onclick="toggleTheme()">🌙</button> <!-- Theme toggle button -->
+    <button onclick="toggleTheme()">🌙</button>
     <button onclick="backspace()">⬅️ Backspace</button>
     <button onclick="clearSentence()">❌ Clear Sentence</button>
     <button onclick="speakSentence()">🔊 Speak</button>
@@ -140,11 +109,10 @@
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
   </div>
 
-  <div id="confirmBox" style="display:none; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background-color: #333; color: white; padding: 8px 20px; border-radius: 5px;">
+  <div id="confirmBox" style="display:none;">
     Confirm Prediction
   </div>
 
-  <!-- Space Button on the Right -->
   <button id="spaceButton" onclick="addSpace()">␣ Space</button>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
@@ -153,50 +121,17 @@
 
   <script>
     let trainingData = {};
+    let currentLandmarks = null;
+    let currentSentence = '';
 
-    // Load imported JSON data
-    function importTrainingData(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const data = JSON.parse(e.target.result);
-        for (const key in data) {
-          trainingData[key] = data[key];
-        }
-        alert('Data imported successfully.');
-      };
-      reader.readAsText(file);
-    }
-
-    // Initialize video and canvas elements for hand tracking
     const videoElement = document.getElementById('video');
     const canvasElement = document.getElementById('canvas');
     const canvasCtx = canvasElement.getContext('2d');
     const predictionEl = document.getElementById('prediction');
     const sentenceEl = document.getElementById('sentence');
-    const labelInput = document.getElementById('labelInput');
-    const confirmBox = document.getElementById('confirmBox');
 
-    canvasElement.width = 640;
-    canvasElement.height = 480;
-
-    let currentLandmarks = null;
-    let lastPrediction = '';
-    let lastConfirmed = '';
-    let currentSentence = '';
-
-    const hands = new Hands({
-      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-    });
-
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.8,
-      minTrackingConfidence: 0.5
-    });
+    const hands = new Hands({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.5 });
 
     function normalizeLandmarks(landmarks) {
       const base = landmarks[0];
@@ -238,49 +173,30 @@
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
         if (sorted.length > 0 && sorted[0][1] > 0.9) {
           const [pred, confidence] = sorted[0];
-          if (pred !== lastConfirmed) {
-            predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
-            lastPrediction = pred;
-            confirmBox.style.display = "block";
-
-            // Update the sentence based on prediction
-            currentSentence += pred;
-            sentenceEl.textContent = currentSentence;
-            lastConfirmed = pred;
-          }
+          predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
+          currentSentence += pred;
+          sentenceEl.textContent = currentSentence;
         } else {
           predictionEl.textContent = "-";
-          confirmBox.style.display = "none";
         }
-      } else {
-        currentLandmarks = null;
-        predictionEl.textContent = "-";
-        confirmBox.style.display = "none";
       }
     });
 
-    const camera = new Camera(videoElement, {
-      onFrame: async () => await hands.send({ image: videoElement }),
-      width: 640,
-      height: 480
-    });
+    const camera = new Camera(videoElement, { onFrame: async () => await hands.send({ image: videoElement }), width: 640, height: 480 });
     camera.start();
 
-    // Add Space to Sentence
     function addSpace() {
       currentSentence += ' ';
       sentenceEl.textContent = currentSentence;
     }
 
-    // Train Gesture
     function trainGesture() {
-      const label = labelInput.value.trim();
+      const label = document.getElementById('labelInput').value.trim();
       if (!label) {
         alert('Please enter a label.');
         return;
       }
 
-      // Capture the landmarks
       if (!currentLandmarks) {
         alert('No landmarks detected.');
         return;
@@ -293,16 +209,6 @@
       alert(`Gesture for ${label} trained!`);
     }
 
-    // Clear All Training Data
-    function clearData() {
-      if (confirm('Are you sure you want to clear all training data?')) {
-        trainingData = {};
-        localStorage.clear();
-        alert('All data cleared.');
-      }
-    }
-
-    // Export Data to JSON
     function exportTrainingData() {
       const data = trainingData;
       const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -312,25 +218,21 @@
       link.click();
     }
 
-    // Toggle Theme (Dark/Light)
     function toggleTheme() {
       document.body.classList.toggle('dark');
       document.body.classList.toggle('light');
     }
 
-    // Backspace (Delete last character)
     function backspace() {
       currentSentence = currentSentence.slice(0, -1);
       sentenceEl.textContent = currentSentence;
     }
 
-    // Clear Sentence
     function clearSentence() {
       currentSentence = '';
       sentenceEl.textContent = currentSentence;
     }
 
-    // Speak Sentence
     function speakSentence() {
       const sentence = currentSentence;
       const utterance = new SpeechSynthesisUtterance(sentence);
