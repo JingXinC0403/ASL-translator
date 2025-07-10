@@ -17,8 +17,18 @@
       min-height: 100vh;
       padding-left: 200px; /* Creates space for buttons on the left */
     }
-    .dark { background-color: #111; color: white; }
-    .light { background-color: #f7f7f7; color: #111; }
+    /* Dark Mode */
+    body.dark {
+      background-color: #111;
+      color: white;
+    }
+
+    /* Light Mode */
+    body.light {
+      background-color: #f7f7f7;
+      color: #111;
+    }
+
     h1 { margin: 10px 0; }
     #video, #canvas {
       position: absolute;
@@ -51,8 +61,11 @@
       background-color: #666;
       transform: scale(1.05);
     }
+
+    /* Light mode button styles */
     body.light #controls button { background-color: #ddd; color: black; }
     body.light #controls button:hover { background-color: #bbb; }
+
     #output { 
       position: absolute; 
       bottom: 10px; 
@@ -82,6 +95,7 @@
       transform: scale(1.05);
     }
 
+    /* Light mode button styles */
     body.light #spaceButton { background-color: #ddd; color: black; }
     body.light #spaceButton:hover { background-color: #bbb; }
 
@@ -98,7 +112,7 @@
     }
   </style>
 </head>
-<body class="dark">
+<body class="dark">  <!-- Start in dark mode -->
   <h1>🐈🐈🐈 ASL Translator 🐈🐈🐈</h1>
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas"></canvas>
@@ -110,7 +124,7 @@
     <button onclick="exportTrainingData()">📄 Export Data</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTrainingData(event)" />
     <button onclick="document.getElementById('importFile').click()">📅 Import Data</button>
-    <button onclick="toggleTheme()">🌙</button>
+    <button onclick="toggleTheme()">🌙</button> <!-- Theme toggle button -->
     <button onclick="backspace()">⬅️ Backspace</button>
     <button onclick="clearSentence()">❌ Clear Sentence</button>
     <button onclick="speakSentence()">🔊 Speak</button>
