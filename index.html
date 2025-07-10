@@ -30,7 +30,10 @@
       color: #111;
     }
 
-    h1 { margin: 10px 0; }
+    h1 { 
+      margin: 10px 0; 
+      text-align: center; /* Center the title */
+    }
     #video, #canvas {
       position: absolute;
       top: 60px;
@@ -219,7 +222,7 @@
         const input = normalizeLandmarks(landmarks);
         const scores = {};
 
-        for (const key in localStorage) {
+                for (const key in localStorage) {
           if (!key.startsWith("asl_")) continue;
           const samples = JSON.parse(localStorage.getItem(key));
           const label = key.slice(4);
@@ -237,7 +240,7 @@
         if (sorted.length > 0 && sorted[0][1] > 0.9) {
           const [pred, confidence] = sorted[0];
           if (pred !== lastConfirmed) {
-            predictionEl.textContent = `${pred} (${(confidence * 90).toFixed(1)}%)`;
+            predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
             lastPrediction = pred;
             confirmBox.style.display = "block";
 
@@ -359,3 +362,5 @@
   </script>
 </body>
 </html>
+
+
