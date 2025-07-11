@@ -10,7 +10,7 @@
       font-family: 'Arial', sans-serif;
       background-color: #000;
       color: white;
-      padding-top: 10px; /* reduced from 60px */
+      padding-top: 10px;
       min-height: 100vh;
       transition: background 0.3s, color 0.3s;
     }
@@ -37,8 +37,6 @@
       background-color: rgba(0, 0, 0, 0.6);
       border-radius: 10px;
       z-index: 11;
-
-      /* make scrollable */
       max-height: 90vh;
       overflow-y: auto;
       scrollbar-width: thin;
@@ -111,7 +109,7 @@
     <button onclick="trainGesture()">Train 📸</button>
     <button onclick="startAutoTrain(100)">Auto Train 100 ⏳</button>
     <button onclick="exportTrainingData()">📄 Export</button>
-    <button onclick="resetAll()">♻️ Reset</button>
+    <button onclick="downloadData()">⬇️ Download Data</button>
     <button onclick="toggleTheme()">🌙/☀️</button>
     <button onclick="backspace()">⬅️ Backspace</button>
     <button onclick="clearSentence()">❌ Clear Sentence</button>
@@ -127,7 +125,6 @@
   <button id="spaceButton" onclick="addSpace()">␣ Space</button>
   <div id="loading">Loading ASL model data...</div>
 
-  <!-- Training logic -->
   <script>
     let trainingData = {};
     let currentLandmarks = null;
@@ -205,16 +202,15 @@
       if (showAlert) alert(`Trained '${label}' (${trainingData[label].length} samples)`);
     }
 
-    function resetAll() {
-      if (confirm("Clear all training data?")) {
-        localStorage.removeItem("aslTrainingData");
-        trainingData = {};
-        updateProgress('');
-        alert("Data cleared.");
-      }
+    function exportTrainingData() {
+      const blob = new Blob([JSON.stringify(trainingData)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'asl_data.json';
+      link.click();
     }
 
-    function exportTrainingData() {
+    function downloadData() {
       const blob = new Blob([JSON.stringify(trainingData)], { type: 'application/json' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -285,7 +281,7 @@
         }
 
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-        if (sorted.length && sorted[0][1] > 0.99) {
+        if (sorted.length && sorted[0][1] > 0.9) {
           const [pred] = sorted[0];
           predictionEl.textContent = pred + ` (${(sorted[0][1]*100).toFixed(1)}%)`;
           const now = Date.now();
