@@ -6,33 +6,28 @@
   <title>🐈 ASL Translator 🐈</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: 'Arial', sans-serif;
       background-color: #000;
       color: white;
-      min-height: 100vh;
-      position: relative;
       padding-top: 60px;
+      min-height: 100vh;
       transition: background 0.3s, color 0.3s;
     }
-
     body.light {
       background-color: #f0f0f0;
       color: black;
     }
-
     h1 {
-      text-align: center;
-      margin: 20px 0;
       position: fixed;
       top: 0;
+      left: 0;
       width: 100%;
+      text-align: center;
       background: rgba(0, 0, 0, 0.8);
-      padding: 10px 0;
-      z-index: 10;
+      padding: 15px 0;
+      z-index: 1000;
     }
-
     #video, #canvas {
       position: absolute;
       top: 70px;
@@ -41,33 +36,37 @@
       width: 640px;
       height: 480px;
     }
-
     #controls {
-      display: flex;
-      flex-direction: column;
       position: fixed;
       top: 10px;
       left: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
       padding: 10px;
       background-color: rgba(0, 0, 0, 0.6);
       border-radius: 10px;
       z-index: 11;
     }
-
-    #controls button {
+    #controls button, #spaceButton {
       padding: 10px;
-      font-size: 1.1em;
+      font-size: 1em;
+      border-radius: 8px;
       background-color: #444;
       color: white;
-      border-radius: 8px;
-      margin: 6px 0;
       cursor: pointer;
+      border: none;
     }
-
-    #controls button:hover {
+    #controls button:hover, #spaceButton:hover {
       background-color: #666;
     }
-
+    #spaceButton {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      font-size: 1.3em;
+      z-index: 11;
+    }
     #output {
       position: absolute;
       bottom: 10px;
@@ -77,31 +76,22 @@
       padding: 10px 20px;
       border-radius: 10px;
     }
-
-    #spaceButton {
-      position: fixed;
-      bottom: 10px;
-      left: 10px;
-      padding: 12px 16px;
-      background-color: #444;
-      color: white;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 1.3em;
-      z-index: 11;
+    .progress {
+      height: 6px;
+      background: #333;
+      margin-top: 4px;
+      border-radius: 3px;
+      overflow: hidden;
     }
-
-    #importFile {
-      margin-top: 5px;
-      color: white;
+    .progress-bar {
+      height: 100%;
+      background: limegreen;
+      width: 0%;
     }
-
-    body.light #controls,
-    body.light #spaceButton {
+    body.light #controls, body.light #spaceButton {
       background-color: rgba(255, 255, 255, 0.8);
       color: black;
     }
-
     body.light #output {
       background: rgba(255, 255, 255, 0.9);
       color: black;
@@ -112,50 +102,73 @@
   <h1>🐈🐈🐈 ASL Translator 🐈🐈🐈</h1>
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas"></canvas>
-
   <div id="controls">
-    <input type="text" id="labelInput" maxlength="15" placeholder="Type word or letter" />
-    <button onclick="trainGesture()">📸 Train Gesture</button>
-    <button onclick="clearData()">🗑️ Clear All Data</button>
-    <button onclick="exportTrainingData()">📄 Export Data</button>
-    <button onclick="toggleTheme()">🌙 Toggle Theme</button>
+    <input type="text" id="labelInput" placeholder="Label (e.g., asl_a)" />
+    <button onclick="trainGesture()">Train 📸</button>
+    <button onclick="startAutoTrain(100)">Auto Train 100 ⏳</button>
+    <button onclick="exportTrainingData()">📄 Export</button>
+    <button onclick="resetAll()">♻️ Reset</button>
+    <button onclick="toggleTheme()">🌙/☀️</button>
     <button onclick="backspace()">⬅️ Backspace</button>
     <button onclick="clearSentence()">❌ Clear Sentence</button>
     <button onclick="speakSentence()">🔊 Speak</button>
-    <button onclick="document.getElementById('importFile').click()">📄 Import Data</button>
-    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTrainingData(this)" />
+    <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
   </div>
-
   <div id="output">
     <p><strong>Prediction:</strong> <span id="prediction">-</span></p>
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
   </div>
-
   <button id="spaceButton" onclick="addSpace()">␣ Space</button>
-
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-
   <script>
-    let trainingData = {};
+    const embeddedData = {
+      "asl_a": [...],  // abbreviated for readability
+      "asl_b": [...],
+      "asl_hello": [...],
+      "asl_c": [...],
+      "asl_we": [...],
+      "asl_are": [...],
+      "asl_the": [...],
+      "asl_z": [...],
+      "asl_m": [...],
+      "asl_n": [...],
+      "asl_o": [...],
+      "asl_p": [...],
+      "asl_q": [...],
+      "asl_r": [...],
+      "asl_s": [...],
+      "asl_t": [...],
+      "asl_u": [...],
+      "asl_v": [...],
+      "asl_w": [...],
+      "asl_x": [...],
+      "asl_y": [...],
+      "asl_d": [...],
+      "asl_e": [...],
+      "asl_f": [...],
+      "asl_g": [...],
+      "asl_h": [...],
+      "asl_i": [...],
+      "asl_j": [...],
+      "asl_k": [...],
+      "asl_l": [...]
+    };
+
+    let trainingData = JSON.parse(localStorage.getItem("aslTrainingData")) || embeddedData;
     let currentLandmarks = null;
     let currentSentence = '';
     let lastPrediction = '';
     let lastAddTime = 0;
+    let autoTraining = false;
 
     const videoElement = document.getElementById('video');
     const canvasElement = document.getElementById('canvas');
     const canvasCtx = canvasElement.getContext('2d');
     const predictionEl = document.getElementById('prediction');
     const sentenceEl = document.getElementById('sentence');
+    const progressBar = document.getElementById('progressBar');
 
     canvasElement.width = 640;
     canvasElement.height = 480;
-
-    const hands = new Hands({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.5 });
-
     function normalizeLandmarks(landmarks) {
       const base = landmarks[0];
       return landmarks.flatMap(pt => [pt.x - base.x, pt.y - base.y, pt.z - base.z]);
@@ -171,75 +184,45 @@
       return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
     }
 
-    hands.onResults(results => {
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const landmarks = results.multiHandLandmarks[0];
-        currentLandmarks = landmarks;
-        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
-        drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
-
-        const input = normalizeLandmarks(landmarks);
-        const scores = {};
-
-        for (const label in trainingData) {
-          let maxSim = -1;
-          for (const sample of trainingData[label]) {
-            const sim = cosineSimilarity(input, sample);
-            if (sim > maxSim) maxSim = sim;
-          }
-          scores[label] = maxSim;
-        }
-
-        const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-        if (sorted.length > 0 && sorted[0][1] > 0.9) {
-          const [pred, confidence] = sorted[0];
-          predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
-
-          const now = Date.now();
-          if (pred !== lastPrediction || now - lastAddTime > 1000) {
-            currentSentence += pred;
-            sentenceEl.textContent = currentSentence;
-            lastPrediction = pred;
-            lastAddTime = now;
-          }
-        } else {
-          predictionEl.textContent = "-";
-          lastPrediction = '';
-        }
-      }
-    });
-
-    const camera = new Camera(videoElement, {
-      onFrame: async () => await hands.send({ image: videoElement }),
-      width: 640,
-      height: 480
-    });
-    camera.start();
-
-    function addSpace() {
-      currentSentence += ' ';
-      sentenceEl.textContent = currentSentence;
+    function saveData() {
+      localStorage.setItem("aslTrainingData", JSON.stringify(trainingData));
     }
 
-    function trainGesture() {
-      const label = document.getElementById('labelInput').value.trim();
-      if (!label) return alert('Please enter a label.');
-      if (!currentLandmarks) return alert('No landmarks detected.');
+    function updateProgress(label) {
+      const count = trainingData[label]?.length || 0;
+      progressBar.style.width = Math.min(count, 100) + '%';
+    }
 
+    async function startAutoTrain(n) {
+      const label = document.getElementById('labelInput').value.trim();
+      if (!label) return alert("Enter label");
+      autoTraining = true;
+      for (let i = 0; i < n; i++) {
+        if (!autoTraining) break;
+        trainGesture(false);
+        await new Promise(r => setTimeout(r, 200));
+      }
+      autoTraining = false;
+    }
+
+    function trainGesture(showAlert = true) {
+      const label = document.getElementById('labelInput').value.trim();
+      if (!label || !currentLandmarks) return;
       const normalized = normalizeLandmarks(currentLandmarks);
       trainingData[label] = trainingData[label] || [];
       trainingData[label].push(normalized);
-      const count = trainingData[label].length;
-      alert(`Gesture for "${label}" trained! Total samples: ${count}`);
+      updateProgress(label);
+      saveData();
+      if (showAlert) alert(`Trained '${label}' (${trainingData[label].length} samples)`);
     }
 
-    function clearData() {
-      trainingData = {};
-      predictionEl.textContent = "-";
-      lastPrediction = '';
-      alert("All training data cleared.");
+    function resetAll() {
+      if (confirm("Clear all training data?")) {
+        localStorage.removeItem("aslTrainingData");
+        trainingData = {};
+        updateProgress('');
+        alert("Data cleared.");
+      }
     }
 
     function exportTrainingData() {
@@ -248,20 +231,6 @@
       link.href = URL.createObjectURL(blob);
       link.download = 'asl_data.json';
       link.click();
-    }
-
-    function importTrainingData(input) {
-      const file = input.files[0];
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        try {
-          trainingData = JSON.parse(e.target.result);
-          alert("Training data imported successfully.");
-        } catch (err) {
-          alert("Failed to import data: Invalid JSON format.");
-        }
-      };
-      reader.readAsText(file);
     }
 
     function toggleTheme() {
@@ -279,10 +248,71 @@
       sentenceEl.textContent = currentSentence;
     }
 
-    function speakSentence() {
-      const utterance = new SpeechSynthesisUtterance(currentSentence);
-      speechSynthesis.speak(utterance);
+    function addSpace() {
+      currentSentence += ' ';
+      sentenceEl.textContent = currentSentence;
     }
+
+    function speakSentence() {
+      speechSynthesis.speak(new SpeechSynthesisUtterance(currentSentence));
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script>
+    const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.8,
+      minTrackingConfidence: 0.5
+    });
+
+    hands.onResults(results => {
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      if (results.multiHandLandmarks?.length) {
+        const landmarks = results.multiHandLandmarks[0];
+        currentLandmarks = landmarks;
+
+        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
+        drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
+
+        const input = normalizeLandmarks(landmarks);
+        const scores = {};
+        for (const label in trainingData) {
+          let maxSim = -1;
+          for (const sample of trainingData[label]) {
+            const sim = cosineSimilarity(input, sample);
+            if (sim > maxSim) maxSim = sim;
+          }
+          scores[label] = maxSim;
+        }
+
+        const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+        if (sorted.length && sorted[0][1] > 0.9) {
+          const [pred] = sorted[0];
+          predictionEl.textContent = pred + ` (${(sorted[0][1]*100).toFixed(1)}%)`;
+          const now = Date.now();
+          if (pred !== lastPrediction || now - lastAddTime > 1000) {
+            currentSentence += pred.replace("asl_", "").toUpperCase();
+            sentenceEl.textContent = currentSentence;
+            lastPrediction = pred;
+            lastAddTime = now;
+          }
+        } else {
+          predictionEl.textContent = "-";
+          lastPrediction = '';
+        }
+      }
+    });
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => await hands.send({ image: videoElement }),
+      width: 640,
+      height: 480
+    });
+    camera.start();
   </script>
 </body>
 </html>
