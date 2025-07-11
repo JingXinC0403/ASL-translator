@@ -143,11 +143,11 @@
     canvasElement.width = 640;
     canvasElement.height = 480;
 
-    fetch('asl_data.json')
+    // Force fresh download each time
+    fetch('asl_data.json?v=' + Date.now())
       .then(response => response.json())
       .then(data => {
-        const saved = JSON.parse(localStorage.getItem("aslTrainingData"));
-        trainingData = saved || data;
+        trainingData = data; // Always use your uploaded data
         document.getElementById('loading').style.display = 'none';
       })
       .catch(err => {
@@ -168,10 +168,6 @@
         bMag += b[i] * b[i];
       }
       return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
-    }
-
-    function saveData() {
-      localStorage.setItem("aslTrainingData", JSON.stringify(trainingData));
     }
 
     function updateProgress(label) {
@@ -198,7 +194,6 @@
       trainingData[label] = trainingData[label] || [];
       trainingData[label].push(normalized);
       updateProgress(label);
-      saveData();
       if (showAlert) alert(`Trained '${label}' (${trainingData[label].length} samples)`);
     }
 
