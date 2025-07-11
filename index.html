@@ -96,6 +96,14 @@
       background: rgba(255, 255, 255, 0.9);
       color: black;
     }
+    #loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.5em;
+      color: yellow;
+    }
   </style>
 </head>
 <body class="dark">
@@ -119,41 +127,11 @@
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
   </div>
   <button id="spaceButton" onclick="addSpace()">␣ Space</button>
-  <script>
-    const embeddedData = {
-      "asl_a": [...],  // abbreviated for readability
-      "asl_b": [...],
-      "asl_hello": [...],
-      "asl_c": [...],
-      "asl_we": [...],
-      "asl_are": [...],
-      "asl_the": [...],
-      "asl_z": [...],
-      "asl_m": [...],
-      "asl_n": [...],
-      "asl_o": [...],
-      "asl_p": [...],
-      "asl_q": [...],
-      "asl_r": [...],
-      "asl_s": [...],
-      "asl_t": [...],
-      "asl_u": [...],
-      "asl_v": [...],
-      "asl_w": [...],
-      "asl_x": [...],
-      "asl_y": [...],
-      "asl_d": [...],
-      "asl_e": [...],
-      "asl_f": [...],
-      "asl_g": [...],
-      "asl_h": [...],
-      "asl_i": [...],
-      "asl_j": [...],
-      "asl_k": [...],
-      "asl_l": [...]
-    };
+  <div id="loading">Loading ASL model data...</div>
 
-    let trainingData = JSON.parse(localStorage.getItem("aslTrainingData")) || embeddedData;
+  <!-- Load training data from asl_data.json -->
+  <script>
+    let trainingData = {};
     let currentLandmarks = null;
     let currentSentence = '';
     let lastPrediction = '';
@@ -169,6 +147,19 @@
 
     canvasElement.width = 640;
     canvasElement.height = 480;
+
+    fetch('asl_data.json')
+      .then(response => response.json())
+      .then(data => {
+        const saved = JSON.parse(localStorage.getItem("aslTrainingData"));
+        trainingData = saved || data;
+        document.getElementById('loading').style.display = 'none';
+      })
+      .catch(err => {
+        console.error("Failed to load ASL data", err);
+        document.getElementById('loading').textContent = 'Failed to load ASL data';
+      });
+
     function normalizeLandmarks(landmarks) {
       const base = landmarks[0];
       return landmarks.flatMap(pt => [pt.x - base.x, pt.y - base.y, pt.z - base.z]);
@@ -257,9 +248,13 @@
       speechSynthesis.speak(new SpeechSynthesisUtterance(currentSentence));
     }
   </script>
+
+  <!-- Load MediaPipe libraries -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+  <!-- Run ASL Detection -->
   <script>
     const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
     hands.setOptions({
@@ -277,6 +272,8 @@
 
         drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
         drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
+
+        if (!trainingData) return;
 
         const input = normalizeLandmarks(landmarks);
         const scores = {};
