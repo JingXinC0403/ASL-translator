@@ -10,23 +10,13 @@
       font-family: 'Arial', sans-serif;
       background-color: #000;
       color: white;
-      padding-top: 60px;
+      padding-top: 10px; /* reduced from 60px */
       min-height: 100vh;
       transition: background 0.3s, color 0.3s;
     }
     body.light {
       background-color: #f0f0f0;
       color: black;
-    }
-    h1 {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      text-align: center;
-      background: rgba(0, 0, 0, 0.8);
-      padding: 15px 0;
-      z-index: 1000;
     }
     #video, #canvas {
       position: absolute;
@@ -47,6 +37,11 @@
       background-color: rgba(0, 0, 0, 0.6);
       border-radius: 10px;
       z-index: 11;
+
+      /* make scrollable */
+      max-height: 90vh;
+      overflow-y: auto;
+      scrollbar-width: thin;
     }
     #controls button, #spaceButton {
       padding: 10px;
@@ -107,10 +102,13 @@
   </style>
 </head>
 <body class="dark">
-  <h1>🐈🐈🐈 ASL Translator 🐈🐈🐈</h1>
+  <!-- Removed <h1> -->
+
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas"></canvas>
+
   <div id="controls">
+    <h2 style="text-align:center; color:white; margin-bottom: 8px;">🐈 ASL Translator</h2>
     <input type="text" id="labelInput" placeholder="Label (e.g., asl_a)" />
     <button onclick="trainGesture()">Train 📸</button>
     <button onclick="startAutoTrain(100)">Auto Train 100 ⏳</button>
@@ -122,14 +120,16 @@
     <button onclick="speakSentence()">🔊 Speak</button>
     <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
   </div>
+
   <div id="output">
     <p><strong>Prediction:</strong> <span id="prediction">-</span></p>
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
   </div>
+
   <button id="spaceButton" onclick="addSpace()">␣ Space</button>
   <div id="loading">Loading ASL model data...</div>
 
-  <!-- Load training data from asl_data.json -->
+  <!-- Training logic -->
   <script>
     let trainingData = {};
     let currentLandmarks = null;
@@ -249,12 +249,12 @@
     }
   </script>
 
-  <!-- Load MediaPipe libraries -->
+  <!-- MediaPipe Hands -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 
-  <!-- Run ASL Detection -->
+  <!-- ASL Prediction -->
   <script>
     const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
     hands.setOptions({
