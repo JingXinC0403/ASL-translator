@@ -41,7 +41,7 @@
       overflow-y: auto;
       scrollbar-width: thin;
     }
-    #controls button, #spaceButton {
+    #controls button, #spaceButton, #cameraSelect {
       padding: 10px;
       font-size: 1em;
       border-radius: 8px;
@@ -50,7 +50,7 @@
       cursor: pointer;
       border: none;
     }
-    #controls button:hover, #spaceButton:hover {
+    #controls button:hover, #spaceButton:hover, #cameraSelect:hover {
       background-color: #666;
     }
     #spaceButton {
@@ -110,6 +110,8 @@
     <button onclick="startAutoTrain(100)">Auto Train 100 ⏳</button>
     <button onclick="exportTrainingData()">📄 Export</button>
     <button onclick="downloadData()">⬇️ Download Data</button>
+    <select id="cameraSelect" onchange="switchToSelectedCamera()"></select>
+    <button onclick="flipCamera()">🔄 Flip Camera</button>
     <button onclick="toggleTheme()">🌙/☀️</button>
     <button onclick="backspace()">⬅️ Backspace</button>
     <button onclick="clearSentence()">❌ Clear Sentence</button>
@@ -125,6 +127,10 @@
   <button id="spaceButton" onclick="addSpace()">␣ Space</button>
   <div id="loading">Loading ASL model data...</div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
   <script>
     let trainingData = {};
     let currentLandmarks = null;
@@ -132,6 +138,10 @@
     let lastPrediction = '';
     let lastAddTime = 0;
     let autoTraining = false;
+
+    let currentStream = null;
+    let currentDeviceId = null;
+    let facingMode = "user";
 
     const videoElement = document.getElementById('video');
     const canvasElement = document.getElementById('canvas');
@@ -169,6 +179,10 @@
       return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
     }
 
+    function saveData() {
+      localStorage.setItem("aslTrainingData", JSON.stringify(trainingData));
+    }
+
     function updateProgress(label) {
       const count = trainingData[label]?.length || 0;
       progressBar.style.width = Math.min(count, 100) + '%';
@@ -193,6 +207,7 @@
       trainingData[label] = trainingData[label] || [];
       trainingData[label].push(normalized);
       updateProgress(label);
+      saveData();
       if (showAlert) alert(`Trained '${label}' (${trainingData[label].length} samples)`);
     }
 
@@ -236,11 +251,9 @@
       speechSynthesis.speak(new SpeechSynthesisUtterance(currentSentence));
     }
 
-    // ✅ Keyboard: backspace and space
     document.addEventListener('keydown', (e) => {
       const active = document.activeElement;
       if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
-
       if (e.key === 'Backspace') {
         e.preventDefault();
         backspace();
@@ -249,13 +262,40 @@
         addSpace();
       }
     });
-  </script>
 
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    function startCamera(deviceId = null) {
+      if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+      const constraints = deviceId ? { video: { deviceId: { exact: deviceId } } } : { video: { facingMode } };
+      navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+        videoElement.srcObject = stream;
+        currentStream = stream;
+        currentDeviceId = deviceId;
+      });
+    }
 
-  <script>
+    function listCameras() {
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        const cameraSelect = document.getElementById('cameraSelect');
+        cameraSelect.innerHTML = '';
+        devices.filter(d => d.kind === 'videoinput').forEach(device => {
+          const option = document.createElement('option');
+          option.value = device.deviceId;
+          option.text = device.label || `Camera ${cameraSelect.length + 1}`;
+          cameraSelect.appendChild(option);
+        });
+      });
+    }
+
+    function switchToSelectedCamera() {
+      const selectedId = document.getElementById('cameraSelect').value;
+      startCamera(selectedId);
+    }
+
+    function flipCamera() {
+      facingMode = (facingMode === "user") ? "environment" : "user";
+      startCamera();
+    }
+
     const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
     hands.setOptions({
       maxNumHands: 1,
@@ -269,11 +309,8 @@
       if (results.multiHandLandmarks?.length) {
         const landmarks = results.multiHandLandmarks[0];
         currentLandmarks = landmarks;
-
         drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
         drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
-
-        if (!trainingData) return;
 
         const input = normalizeLandmarks(landmarks);
         const scores = {};
@@ -304,12 +341,16 @@
       }
     });
 
-    const camera = new Camera(videoElement, {
-      onFrame: async () => await hands.send({ image: videoElement }),
-      width: 640,
-      height: 480
+    window.addEventListener('DOMContentLoaded', () => {
+      startCamera();
+      listCameras();
+      const camera = new Camera(videoElement, {
+        onFrame: async () => await hands.send({ image: videoElement }),
+        width: 640,
+        height: 480
+      });
+      camera.start();
     });
-    camera.start();
   </script>
 </body>
 </html>
