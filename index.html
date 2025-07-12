@@ -287,7 +287,7 @@
         }
 
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-        if (sorted.length && sorted[0][1] > 0.9) {
+        if (sorted.length && sorted[0][1] > 0.99) {
           const [pred] = sorted[0];
           predictionEl.textContent = pred + ` (${(sorted[0][1]*100).toFixed(1)}%)`;
           const now = Date.now();
