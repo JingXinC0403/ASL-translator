@@ -143,7 +143,6 @@
     canvasElement.width = 640;
     canvasElement.height = 480;
 
-    // Force reload of shared training data every time
     fetch('asl_data.json?v=' + Date.now())
       .then(response => response.json())
       .then(data => {
@@ -237,8 +236,11 @@
       speechSynthesis.speak(new SpeechSynthesisUtterance(currentSentence));
     }
 
-    // ✅ Keyboard Support: Backspace and Space
+    // ✅ Keyboard: backspace and space
     document.addEventListener('keydown', (e) => {
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+
       if (e.key === 'Backspace') {
         e.preventDefault();
         backspace();
@@ -249,12 +251,10 @@
     });
   </script>
 
-  <!-- MediaPipe Hands -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 
-  <!-- ASL Prediction -->
   <script>
     const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
     hands.setOptions({
@@ -287,7 +287,7 @@
         }
 
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-        if (sorted.length && sorted[0][1] > 0.99) {
+        if (sorted.length && sorted[0][1] > 0.9) {
           const [pred] = sorted[0];
           predictionEl.textContent = pred + ` (${(sorted[0][1]*100).toFixed(1)}%)`;
           const now = Date.now();
