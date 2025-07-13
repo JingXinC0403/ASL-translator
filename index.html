@@ -18,6 +18,9 @@
       background-color: #f0f0f0;
       color: black;
     }
+    body.light h2 {
+      color: black;
+    }
     #video, #canvas {
       position: absolute;
       top: 70px;
@@ -134,11 +137,10 @@
   <script>
     let trainingData = {};
     let currentLandmarks = null;
-    let currentSentence = '';
+    let currentSentence = localStorage.getItem('savedSentence') || '';
     let lastPrediction = '';
     let lastAddTime = 0;
     let autoTraining = false;
-
     let currentStream = null;
     let currentDeviceId = null;
     let facingMode = "user";
@@ -149,6 +151,7 @@
     const predictionEl = document.getElementById('prediction');
     const sentenceEl = document.getElementById('sentence');
     const progressBar = document.getElementById('progressBar');
+    sentenceEl.textContent = currentSentence;
 
     canvasElement.width = 640;
     canvasElement.height = 480;
@@ -179,10 +182,6 @@
       return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
     }
 
-    function saveData() {
-      localStorage.setItem("aslTrainingData", JSON.stringify(trainingData));
-    }
-
     function updateProgress(label) {
       const count = trainingData[label]?.length || 0;
       progressBar.style.width = Math.min(count, 100) + '%';
@@ -207,7 +206,6 @@
       trainingData[label] = trainingData[label] || [];
       trainingData[label].push(normalized);
       updateProgress(label);
-      saveData();
       if (showAlert) alert(`Trained '${label}' (${trainingData[label].length} samples)`);
     }
 
@@ -220,11 +218,7 @@
     }
 
     function downloadData() {
-      const blob = new Blob([JSON.stringify(trainingData)], { type: 'application/json' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'asl_data.json';
-      link.click();
+      exportTrainingData();
     }
 
     function toggleTheme() {
@@ -235,16 +229,19 @@
     function backspace() {
       currentSentence = currentSentence.slice(0, -1);
       sentenceEl.textContent = currentSentence;
+      localStorage.setItem('savedSentence', currentSentence);
     }
 
     function clearSentence() {
       currentSentence = '';
       sentenceEl.textContent = currentSentence;
+      localStorage.setItem('savedSentence', currentSentence);
     }
 
     function addSpace() {
       currentSentence += ' ';
       sentenceEl.textContent = currentSentence;
+      localStorage.setItem('savedSentence', currentSentence);
     }
 
     function speakSentence() {
@@ -309,6 +306,7 @@
       if (results.multiHandLandmarks?.length) {
         const landmarks = results.multiHandLandmarks[0];
         currentLandmarks = landmarks;
+
         drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
         drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
 
@@ -331,6 +329,7 @@
           if (pred !== lastPrediction || now - lastAddTime > 1000) {
             currentSentence += pred.replace("asl_", "").toUpperCase();
             sentenceEl.textContent = currentSentence;
+            localStorage.setItem('savedSentence', currentSentence);
             lastPrediction = pred;
             lastAddTime = now;
           }
