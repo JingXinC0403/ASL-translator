@@ -18,16 +18,14 @@
       background-color: #f0f0f0;
       color: black;
     }
-    body.light h2 {
-      color: black;
-    }
     #video, #canvas {
       position: absolute;
       top: 70px;
       left: 50%;
       transform: translateX(-50%);
-      width: 640px;
-      height: 480px;
+      width: 100%;
+      max-width: 640px;
+      height: auto;
     }
     #controls {
       position: fixed;
@@ -42,7 +40,6 @@
       z-index: 11;
       max-height: 90vh;
       overflow-y: auto;
-      scrollbar-width: thin;
     }
     #controls button, #spaceButton, #cameraSelect {
       padding: 10px;
@@ -56,13 +53,6 @@
     #controls button:hover, #spaceButton:hover, #cameraSelect:hover {
       background-color: #666;
     }
-    #spaceButton {
-      position: fixed;
-      bottom: 10px;
-      left: 10px;
-      font-size: 1.3em;
-      z-index: 11;
-    }
     #output {
       position: absolute;
       bottom: 10px;
@@ -71,26 +61,7 @@
       background: rgba(34, 34, 34, 0.9);
       padding: 10px 20px;
       border-radius: 10px;
-    }
-    .progress {
-      height: 6px;
-      background: #333;
-      margin-top: 4px;
-      border-radius: 3px;
-      overflow: hidden;
-    }
-    .progress-bar {
-      height: 100%;
-      background: limegreen;
-      width: 0%;
-    }
-    body.light #controls, body.light #spaceButton {
-      background-color: rgba(255, 255, 255, 0.8);
-      color: black;
-    }
-    body.light #output {
-      background: rgba(255, 255, 255, 0.9);
-      color: black;
+      z-index: 10;
     }
     #loading {
       position: fixed;
@@ -118,24 +89,23 @@
     }
   </style>
 </head>
-<body class="dark">
+<body>
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas"></canvas>
 
   <div id="controls">
-    <h2 style="text-align:center; color:white; margin-bottom: 8px;">🐈 ASL Translator</h2>
+    <h2>🐈 ASL Translator</h2>
+    <input type="file" id="fileLoader" accept="application/json" />
     <input type="text" id="labelInput" placeholder="Label (e.g., asl_a)" />
     <button onclick="trainGesture()">Train 📸</button>
     <button onclick="startAutoTrain(100)">Auto Train 100 ⏳</button>
     <button onclick="exportTrainingData()">📄 Export</button>
-    <button onclick="downloadData()">⬇️ Download Data</button>
-    <select id="cameraSelect" onchange="switchToSelectedCamera()"></select>
-    <button onclick="flipCamera()">🔄 Flip Camera</button>
-    <button onclick="toggleTheme()">🌙/☀️</button>
-    <button onclick="backspace()">⬅️ Backspace</button>
-    <button onclick="clearSentence()">❌ Clear Sentence</button>
+    <button onclick="downloadData()">📂 Download</button>
     <button onclick="speakSentence()">🔊 Speak</button>
-    <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
+    <button onclick="backspace()">⬅️ Backspace</button>
+    <button onclick="clearSentence()">❌ Clear</button>
+    <button onclick="addSpace()">␣ Space</button>
+    <button onclick="toggleTheme()">🌙/☀️ Theme</button>
   </div>
 
   <div id="output">
@@ -143,89 +113,195 @@
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
   </div>
 
-  <button id="spaceButton" onclick="addSpace()">␣ Space</button>
   <div id="topPredictions">
     <strong>Top 3 Predictions</strong>
     <ul id="top3List"></ul>
   </div>
+
   <div id="loading">Loading ASL model data...</div>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 
-<script>
-  const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-  hands.setOptions({
-    maxNumHands: 1,
-    modelComplexity: 1,
-    minDetectionConfidence: 0.8,
-    minTrackingConfidence: 0.5
-  });
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script>
+    const canvasElement = document.getElementById("canvas");
+    const videoElement = document.getElementById("video");
+    const canvasCtx = canvasElement.getContext("2d");
 
-  const camera = new Camera(videoElement, {
-    onFrame: async () => await hands.send({ image: videoElement }),
-    width: 640,
-    height: 480
-  });
+    let trainingData = {};
+    let currentLandmarks = null;
+    let lastPrediction = '';
+    let lastAddTime = 0;
+    let currentSentence = localStorage.getItem("savedSentence") || '';
+    const top3List = document.getElementById("top3List");
+    const predictionEl = document.getElementById("prediction");
+    const sentenceEl = document.getElementById("sentence");
+    sentenceEl.textContent = currentSentence;
 
-  hands.onResults(results => {
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.5 });
 
-    if (results.multiHandLandmarks?.length) {
-      const landmarks = results.multiHandLandmarks[0];
-      currentLandmarks = landmarks;
-
-      drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
-      drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
-
-      const input = normalizeLandmarks(landmarks);
-      const scores = {};
-      for (const label in trainingData) {
-        let maxSim = -1;
-        for (const sample of trainingData[label]) {
-          const sim = cosineSimilarity(input, sample);
-          if (sim > maxSim) maxSim = sim;
-        }
-        scores[label] = maxSim;
-      }
-
-      updateTop3Predictions(scores); // ✅ NEW: show top 3 in sidebar
-
-      const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-      if (sorted.length && sorted[0][1] > 0.995) {
-        const [pred] = sorted[0];
-        predictionEl.textContent = pred + ` (${(sorted[0][1] * 100).toFixed(1)}%)`;
-        const now = Date.now();
-        if (pred !== lastPrediction || now - lastAddTime > 1000) {
-          currentSentence += pred.replace("asl_", "").toUpperCase();
-          sentenceEl.textContent = currentSentence;
-          localStorage.setItem('savedSentence', currentSentence);
-          lastPrediction = pred;
-          lastAddTime = now;
-        }
-      } else {
-        predictionEl.textContent = "-";
-        lastPrediction = '';
-      }
-    }
-  });
-
-  function updateTop3Predictions(scores) {
-    const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-    const top3List = document.getElementById('top3List');
-    top3List.innerHTML = '';
-    sorted.slice(0, 3).forEach(([label, sim]) => {
-      const li = document.createElement('li');
-      li.textContent = `${label} (${(sim * 100).toFixed(1)}%)`;
-      top3List.appendChild(li);
+    const camera = new Camera(videoElement, {
+      onFrame: async () => await hands.send({ image: videoElement }),
+      width: 640,
+      height: 480
     });
-  }
 
-  window.addEventListener('DOMContentLoaded', () => {
-    startCamera();
-    listCameras();
-    camera.start();
-  });
-</script>
+    videoElement.addEventListener("loadedmetadata", () => {
+      canvasElement.width = videoElement.videoWidth;
+      canvasElement.height = videoElement.videoHeight;
+    });
+
+    fetch("asl_data.json")
+      .then(res => res.json())
+      .then(data => {
+        trainingData = data;
+        document.getElementById("loading").style.display = "none";
+        console.log("✅ Pretrained data loaded.");
+      })
+      .catch(err => {
+        console.error("❌ Failed to load pretrained data", err);
+        const loadingEl = document.getElementById("loading");
+        loadingEl.textContent = "❌ Failed to load model data";
+        setTimeout(() => loadingEl.style.display = "none", 3000);
+      });
+
+    hands.onResults(results => {
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      if (results.multiHandLandmarks?.length) {
+        const landmarks = results.multiHandLandmarks[0];
+        currentLandmarks = landmarks;
+        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
+        drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
+
+        const input = normalizeLandmarks(landmarks);
+        const scores = {};
+        for (const label in trainingData) {
+          let maxSim = -1;
+          for (const sample of trainingData[label]) {
+            const sim = cosineSimilarity(input, sample);
+            if (sim > maxSim) maxSim = sim;
+          }
+          scores[label] = maxSim;
+        }
+
+        const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+        top3List.innerHTML = sorted.slice(0, 3).map(([l, s]) => `<li>${l} (${(s*100).toFixed(1)}%)</li>`).join('');
+        if (sorted.length && sorted[0][1] > 0.85) {
+          const [pred] = sorted[0];
+          predictionEl.textContent = `${pred} (${(sorted[0][1] * 100).toFixed(1)}%)`;
+          const now = Date.now();
+          if (pred !== lastPrediction || now - lastAddTime > 1000) {
+            currentSentence += pred.replace("asl_", "").toUpperCase();
+            sentenceEl.textContent = currentSentence;
+            localStorage.setItem('savedSentence', currentSentence);
+            lastPrediction = pred;
+            lastAddTime = now;
+          }
+        } else {
+          predictionEl.textContent = "-";
+          lastPrediction = '';
+        }
+      }
+    });
+
+    function normalizeLandmarks(landmarks) {
+      const base = landmarks[0];
+      return landmarks.flatMap(pt => [pt.x - base.x, pt.y - base.y, pt.z - base.z]);
+    }
+
+    function cosineSimilarity(a, b) {
+      let dot = 0, aMag = 0, bMag = 0;
+      for (let i = 0; i < a.length; i++) {
+        dot += a[i] * b[i]; aMag += a[i] * a[i]; bMag += b[i] * b[i];
+      }
+      return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
+    }
+
+    function trainGesture() {
+      const label = document.getElementById("labelInput").value.trim().toLowerCase();
+      if (!label || !currentLandmarks) return alert("Enter label and show hand.");
+      const key = label.startsWith("asl_") ? label : "asl_" + label;
+      const norm = normalizeLandmarks(currentLandmarks);
+      if (!trainingData[key]) trainingData[key] = [];
+      trainingData[key].push(norm);
+      alert(`✅ Trained ${key}`);
+    }
+
+    function startAutoTrain(n = 100) {
+      const label = document.getElementById("labelInput").value.trim().toLowerCase();
+      if (!label) return alert("Enter label.");
+      const key = label.startsWith("asl_") ? label : "asl_" + label;
+      let i = 0;
+      const interval = setInterval(() => {
+        if (!currentLandmarks) return;
+        const norm = normalizeLandmarks(currentLandmarks);
+        if (!trainingData[key]) trainingData[key] = [];
+        trainingData[key].push(norm);
+        if (++i >= n) clearInterval(interval);
+      }, 200);
+    }
+
+    function speakSentence() {
+      const utter = new SpeechSynthesisUtterance(currentSentence);
+      speechSynthesis.speak(utter);
+    }
+
+    function backspace() {
+      currentSentence = currentSentence.slice(0, -1);
+      sentenceEl.textContent = currentSentence;
+    }
+
+    function clearSentence() {
+      currentSentence = '';
+      sentenceEl.textContent = '';
+    }
+
+    function addSpace() {
+      currentSentence += ' ';
+      sentenceEl.textContent = currentSentence;
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("light");
+    }
+
+    function exportTrainingData() {
+      const blob = new Blob([JSON.stringify(trainingData)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "asl_data.json";
+      a.click();
+    }
+
+    function downloadData() {
+      exportTrainingData();
+    }
+
+    document.getElementById("fileLoader").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        trainingData = JSON.parse(reader.result);
+        alert("✅ Data loaded!");
+      };
+      reader.readAsText(file);
+    });
+
+    window.addEventListener("keydown", e => {
+      if (e.key === 'Backspace') backspace();
+      if (e.key === ' ') { e.preventDefault(); addSpace(); }
+      if (e.key === 'Escape') clearSentence();
+    });
+
+    window.addEventListener("beforeunload", () => {
+      localStorage.setItem("savedSentence", currentSentence);
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      camera.start();
+    });
+  </script>
 </body>
 </html>
