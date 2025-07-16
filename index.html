@@ -187,7 +187,7 @@
 
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
         top3List.innerHTML = sorted.slice(0, 3).map(([l, s]) => `<li>${l} (${(s*100).toFixed(1)}%)</li>`).join('');
-        if (sorted.length && sorted[0][1] > 0.85) {
+        if (sorted.length && sorted[0][1] > 0.95) {
           const [pred] = sorted[0];
           predictionEl.textContent = `${pred} (${(sorted[0][1] * 100).toFixed(1)}%)`;
           const now = Date.now();
