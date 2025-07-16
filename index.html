@@ -1,3 +1,4 @@
+<!-- Updated full HTML with flip camera and camera list -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -101,6 +102,8 @@
     <button onclick="startAutoTrain(100)">Auto Train 100 ⏳</button>
     <button onclick="exportTrainingData()">📄 Export</button>
     <button onclick="downloadData()">📂 Download</button>
+    <select id="cameraSelect" onchange="switchCamera()"></select>
+    <button onclick="flipCamera()">🔄 Flip Camera</button>
     <button onclick="speakSentence()">🔊 Speak</button>
     <button onclick="backspace()">⬅️ Backspace</button>
     <button onclick="clearSentence()">❌ Clear</button>
@@ -127,44 +130,63 @@
     const canvasElement = document.getElementById("canvas");
     const videoElement = document.getElementById("video");
     const canvasCtx = canvasElement.getContext("2d");
-
-    let trainingData = {};
-    let currentLandmarks = null;
-    let lastPrediction = '';
-    let lastAddTime = 0;
+    let trainingData = {}, currentLandmarks = null, lastPrediction = '', lastAddTime = 0;
     let currentSentence = localStorage.getItem("savedSentence") || '';
     const top3List = document.getElementById("top3List");
     const predictionEl = document.getElementById("prediction");
     const sentenceEl = document.getElementById("sentence");
     sentenceEl.textContent = currentSentence;
 
+    let allCameras = [];
+    let currentCameraIndex = 0;
+    let currentStream = null;
+
+    function listCameras() {
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        const cameraSelect = document.getElementById("cameraSelect");
+        cameraSelect.innerHTML = '';
+        allCameras = devices.filter(device => device.kind === "videoinput");
+        allCameras.forEach((device, i) => {
+          const option = document.createElement("option");
+          option.value = device.deviceId;
+          option.text = device.label || `Camera ${i + 1}`;
+          cameraSelect.appendChild(option);
+        });
+        if (allCameras.length) startCamera(allCameras[0].deviceId);
+      });
+    }
+
+    function startCamera(deviceId) {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+      navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } }).then(stream => {
+        videoElement.srcObject = stream;
+        currentStream = stream;
+      });
+    }
+
+    function switchCamera() {
+      const selectedId = document.getElementById("cameraSelect").value;
+      startCamera(selectedId);
+    }
+
+    function flipCamera() {
+      currentCameraIndex = (currentCameraIndex + 1) % allCameras.length;
+      startCamera(allCameras[currentCameraIndex].deviceId);
+      document.getElementById("cameraSelect").selectedIndex = currentCameraIndex;
+    }
+
     const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
     hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.5 });
+    const cameraFeed = new Camera(videoElement, { onFrame: async () => await hands.send({ image: videoElement }), width: 640, height: 480 });
 
-    const camera = new Camera(videoElement, {
-      onFrame: async () => await hands.send({ image: videoElement }),
-      width: 640,
-      height: 480
+    fetch("asl_data.json").then(res => res.json()).then(data => {
+      trainingData = data;
+      document.getElementById("loading").style.display = "none";
+    }).catch(err => {
+      document.getElementById("loading").textContent = "❌ Failed to load model data";
     });
-
-    videoElement.addEventListener("loadedmetadata", () => {
-      canvasElement.width = videoElement.videoWidth;
-      canvasElement.height = videoElement.videoHeight;
-    });
-
-    fetch("asl_data.json")
-      .then(res => res.json())
-      .then(data => {
-        trainingData = data;
-        document.getElementById("loading").style.display = "none";
-        console.log("✅ Pretrained data loaded.");
-      })
-      .catch(err => {
-        console.error("❌ Failed to load pretrained data", err);
-        const loadingEl = document.getElementById("loading");
-        loadingEl.textContent = "❌ Failed to load model data";
-        setTimeout(() => loadingEl.style.display = "none", 3000);
-      });
 
     hands.onResults(results => {
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -300,7 +322,8 @@
     });
 
     window.addEventListener("DOMContentLoaded", () => {
-      camera.start();
+      listCameras();
+      cameraFeed.start();
     });
   </script>
 </body>
