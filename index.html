@@ -1,4 +1,3 @@
-<!-- Updated full HTML with flip camera and camera list -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -124,12 +123,12 @@
   <div id="loading">Loading ASL model data...</div>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
   <script>
     const canvasElement = document.getElementById("canvas");
     const videoElement = document.getElementById("video");
     const canvasCtx = canvasElement.getContext("2d");
+
     let trainingData = {}, currentLandmarks = null, lastPrediction = '', lastAddTime = 0;
     let currentSentence = localStorage.getItem("savedSentence") || '';
     const top3List = document.getElementById("top3List");
@@ -137,49 +136,56 @@
     const sentenceEl = document.getElementById("sentence");
     sentenceEl.textContent = currentSentence;
 
-    let allCameras = [];
-    let currentCameraIndex = 0;
-    let currentStream = null;
+    let allCameras = [], currentCameraIndex = 0, currentStream = null;
 
-    function listCameras() {
-      navigator.mediaDevices.enumerateDevices().then(devices => {
-        const cameraSelect = document.getElementById("cameraSelect");
-        cameraSelect.innerHTML = '';
-        allCameras = devices.filter(device => device.kind === "videoinput");
-        allCameras.forEach((device, i) => {
-          const option = document.createElement("option");
-          option.value = device.deviceId;
-          option.text = device.label || `Camera ${i + 1}`;
-          cameraSelect.appendChild(option);
-        });
-        if (allCameras.length) startCamera(allCameras[0].deviceId);
-      });
-    }
+    const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.5 });
 
-    function startCamera(deviceId) {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
-      navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } }).then(stream => {
-        videoElement.srcObject = stream;
-        currentStream = stream;
+    async function listCameras() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameraSelect = document.getElementById("cameraSelect");
+      cameraSelect.innerHTML = '';
+      allCameras = devices.filter(d => d.kind === "videoinput");
+      allCameras.forEach((device, i) => {
+        const option = document.createElement("option");
+        option.value = device.deviceId;
+        option.textContent = device.label || `Camera ${i + 1}`;
+        cameraSelect.appendChild(option);
       });
+      if (allCameras.length) startCamera(allCameras[0].deviceId);
     }
 
     function switchCamera() {
       const selectedId = document.getElementById("cameraSelect").value;
+      currentCameraIndex = allCameras.findIndex(c => c.deviceId === selectedId);
       startCamera(selectedId);
     }
 
     function flipCamera() {
       currentCameraIndex = (currentCameraIndex + 1) % allCameras.length;
-      startCamera(allCameras[currentCameraIndex].deviceId);
+      const deviceId = allCameras[currentCameraIndex].deviceId;
       document.getElementById("cameraSelect").selectedIndex = currentCameraIndex;
+      startCamera(deviceId);
     }
 
-    const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.5 });
-    const cameraFeed = new Camera(videoElement, { onFrame: async () => await hands.send({ image: videoElement }), width: 640, height: 480 });
+    function startCamera(deviceId) {
+      if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+      navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
+        .then(stream => {
+          currentStream = stream;
+          videoElement.srcObject = stream;
+
+          const loop = async () => {
+            if (videoElement.readyState >= 2) await hands.send({ image: videoElement });
+            requestAnimationFrame(loop);
+          };
+          loop();
+        })
+        .catch(err => {
+          alert("Camera access failed. Please allow permission.");
+          console.error(err);
+        });
+    }
 
     fetch("asl_data.json").then(res => res.json()).then(data => {
       trainingData = data;
@@ -216,7 +222,7 @@
           if (pred !== lastPrediction || now - lastAddTime > 1000) {
             currentSentence += pred.replace("asl_", "").toUpperCase();
             sentenceEl.textContent = currentSentence;
-            localStorage.setItem('savedSentence', currentSentence);
+            localStorage.setItem("savedSentence", currentSentence);
             lastPrediction = pred;
             lastAddTime = now;
           }
@@ -321,10 +327,7 @@
       localStorage.setItem("savedSentence", currentSentence);
     });
 
-    window.addEventListener("DOMContentLoaded", () => {
-      listCameras();
-      cameraFeed.start();
-    });
+    window.addEventListener("DOMContentLoaded", listCameras);
   </script>
 </body>
 </html>
