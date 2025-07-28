@@ -188,6 +188,20 @@
         });
     }
 
+    function resizeCanvas() {
+      canvasElement.width = videoElement.videoWidth;
+      canvasElement.height = videoElement.videoHeight;
+    }
+
+    videoElement.onloadedmetadata = () => {
+      resizeCanvas();
+      const loop = async () => {
+        if (videoElement.readyState >= 2) await hands.send({ image: videoElement });
+        requestAnimationFrame(loop);
+      };
+      loop();
+    };
+
     fetch("asl_data.json").then(res => res.json()).then(data => {
       trainingData = data;
       document.getElementById("loading").style.display = "none";
@@ -200,10 +214,18 @@
       if (results.multiHandLandmarks?.length) {
         const landmarks = results.multiHandLandmarks[0];
         currentLandmarks = landmarks;
-        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
-        drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
 
-        const input = normalizeLandmarks(landmarks);
+        // Adjust the landmarks position based on the canvas size and video element size
+        const adjustedLandmarks = landmarks.map(pt => ({
+          x: pt.x * canvasElement.width,
+          y: pt.y * canvasElement.height,
+        }));
+
+        // Draw the connectors and landmarks with adjusted coordinates
+        drawConnectors(canvasCtx, adjustedLandmarks, HAND_CONNECTIONS, { color: '#0f0' });
+        drawLandmarks(canvasCtx, adjustedLandmarks, { color: '#0f0', radius: 3 });
+
+        const input = normalizeLandmarks(adjustedLandmarks);
         const scores = {};
         for (const label in trainingData) {
           let maxSim = -1;
