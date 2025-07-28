@@ -215,13 +215,11 @@
         const landmarks = results.multiHandLandmarks[0];
         currentLandmarks = landmarks;
 
-        // Adjust the landmarks position based on the canvas size and video element size
         const adjustedLandmarks = landmarks.map(pt => ({
           x: pt.x * canvasElement.width,
           y: pt.y * canvasElement.height,
         }));
 
-        // Draw the connectors and landmarks with adjusted coordinates
         drawConnectors(canvasCtx, adjustedLandmarks, HAND_CONNECTIONS, { color: '#0f0' });
         drawLandmarks(canvasCtx, adjustedLandmarks, { color: '#0f0', radius: 3 });
 
@@ -285,7 +283,7 @@
       const key = label.startsWith("asl_") ? label : "asl_" + label;
       let i = 0;
       const interval = setInterval(() => {
-        if (!currentLandmarks) return;
+        if (!currentLandmarks || currentLandmarks.length === 0) return;
         const norm = normalizeLandmarks(currentLandmarks);
         if (!trainingData[key]) trainingData[key] = [];
         trainingData[key].push(norm);
