@@ -139,15 +139,8 @@
 
     let allCameras = [], currentCameraIndex = 0, currentStream = null;
 
-    const hands = new Hands({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-    });
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.8,
-      minTrackingConfidence: 0.5
-    });
+    const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.5 });
 
     async function listCameras() {
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -195,21 +188,6 @@
         });
     }
 
-    function resizeCanvas() {
-      canvasElement.width = videoElement.videoWidth;
-      canvasElement.height = videoElement.videoHeight;
-    }
-
-    videoElement.onloadedmetadata = () => {
-      resizeCanvas();
-      const loop = async () => {
-        if (videoElement.readyState >= 2) await hands.send({ image: videoElement });
-        requestAnimationFrame(loop);
-      };
-      loop();
-    };
-
-    // Fetch training data
     fetch("asl_data.json").then(res => res.json()).then(data => {
       trainingData = data;
       document.getElementById("loading").style.display = "none";
@@ -222,17 +200,10 @@
       if (results.multiHandLandmarks?.length) {
         const landmarks = results.multiHandLandmarks[0];
         currentLandmarks = landmarks;
+        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
+        drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
 
-        const adjustedLandmarks = landmarks.map(pt => ({
-          x: pt.x * canvasElement.width,
-          y: pt.y * canvasElement.height,
-        }));
-
-        // Drawing the hand connectors and landmarks
-        drawConnectors(canvasCtx, adjustedLandmarks, HAND_CONNECTIONS, { color: '#0f0' });
-        drawLandmarks(canvasCtx, adjustedLandmarks, { color: '#0f0', radius: 3 });
-
-        const input = normalizeLandmarks(adjustedLandmarks);
+        const input = normalizeLandmarks(landmarks);
         const scores = {};
         for (const label in trainingData) {
           let maxSim = -1;
@@ -275,6 +246,89 @@
       }
       return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
     }
+
+    function trainGesture() {
+      const label = document.getElementById("labelInput").value.trim().toLowerCase();
+      if (!label || !currentLandmarks) return alert("Enter label and show hand.");
+      const key = label.startsWith("asl_") ? label : "asl_" + label;
+      const norm = normalizeLandmarks(currentLandmarks);
+      if (!trainingData[key]) trainingData[key] = [];
+      trainingData[key].push(norm);
+      alert(`✅ Trained ${key}`);
+    }
+
+    function startAutoTrain(n = 100) {
+      const label = document.getElementById("labelInput").value.trim().toLowerCase();
+      if (!label) return alert("Enter label.");
+      const key = label.startsWith("asl_") ? label : "asl_" + label;
+      let i = 0;
+      const interval = setInterval(() => {
+        if (!currentLandmarks) return;
+        const norm = normalizeLandmarks(currentLandmarks);
+        if (!trainingData[key]) trainingData[key] = [];
+        trainingData[key].push(norm);
+        if (++i >= n) clearInterval(interval);
+      }, 200);
+    }
+
+    function speakSentence() {
+      const utter = new SpeechSynthesisUtterance(currentSentence);
+      speechSynthesis.speak(utter);
+    }
+
+    function backspace() {
+      currentSentence = currentSentence.slice(0, -1);
+      sentenceEl.textContent = currentSentence;
+    }
+
+    function clearSentence() {
+      currentSentence = '';
+      sentenceEl.textContent = '';
+    }
+
+    function addSpace() {
+      currentSentence += ' ';
+      sentenceEl.textContent = currentSentence;
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("light");
+    }
+
+    function exportTrainingData() {
+      const blob = new Blob([JSON.stringify(trainingData)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "asl_data.json";
+      a.click();
+    }
+
+    function downloadData() {
+      exportTrainingData();
+    }
+
+    document.getElementById("fileLoader").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        trainingData = JSON.parse(reader.result);
+        alert("✅ Data loaded!");
+      };
+      reader.readAsText(file);
+    });
+
+    window.addEventListener("keydown", e => {
+      if (e.key === 'Backspace') backspace();
+      if (e.key === ' ') { e.preventDefault(); addSpace(); }
+      if (e.key === 'Escape') clearSentence();
+    });
+
+    window.addEventListener("beforeunload", () => {
+      localStorage.setItem("savedSentence", currentSentence);
+    });
+
+    window.addEventListener("DOMContentLoaded", listCameras);
   </script>
 </body>
 </html>
