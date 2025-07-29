@@ -126,61 +126,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.min.js"></script>
 
   <script>
-
-        hands.onResults(results => {
-  // Clear the previous frame
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-  // Check if there are hand landmarks detected
-      if (results.multiHandLandmarks?.length) {
-    // Get the first hand landmarks
-        const landmarks = results.multiHandLandmarks[0];
-        currentLandmarks = landmarks;
-
-    // Adjust the landmarks to fit the canvas size
-        const adjustedLandmarks = landmarks.map(pt => ({
-          x: pt.x * canvasElement.width,
-          y: pt.y * canvasElement.height,
-        }));
-
-    // Draw hand connectors (lines between landmarks)
-        drawConnectors(canvasCtx, adjustedLandmarks, HAND_CONNECTIONS, { color: '#0f0' });
-
-    // Draw the landmarks as circles
-        drawLandmarks(canvasCtx, adjustedLandmarks, { color: '#0f0', radius: 3 });
-
-    // Now you can process the landmarks for prediction
-        const input = normalizeLandmarks(adjustedLandmarks);
-        const scores = {};
-        for (const label in trainingData) {
-          let maxSim = -1;
-          for (const sample of trainingData[label]) {
-            const sim = cosineSimilarity(input, sample);
-            if (sim > maxSim) maxSim = sim;
-          }
-          scores[label] = maxSim;
-        }
-
-        const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-        top3List.innerHTML = sorted.slice(0, 3).map(([l, s]) => `<li>${l} (${(s * 100).toFixed(1)}%)</li>`).join('');
-        if (sorted.length && sorted[0][1] > 0.95) {
-          const [pred] = sorted[0];
-          predictionEl.textContent = `${pred} (${(sorted[0][1] * 100).toFixed(1)}%)`;
-          const now = Date.now();
-          if (pred !== lastPrediction || now - lastAddTime > 1000) {
-            currentSentence += pred.replace("asl_", "").toUpperCase();
-            sentenceEl.textContent = currentSentence;
-            localStorage.setItem("savedSentence", currentSentence);
-            lastPrediction = pred;
-            lastAddTime = now;
-          }
-        } else {
-        predictionEl.textContent = "-";
-          lastPrediction = '';
-        }
-      }
-    });
-
     const canvasElement = document.getElementById("canvas");
     const videoElement = document.getElementById("video");
     const canvasCtx = canvasElement.getContext("2d");
@@ -275,7 +220,6 @@
           y: pt.y * canvasElement.height,
         }));
 
-        // Drawing the hand connectors and landmarks
         drawConnectors(canvasCtx, adjustedLandmarks, HAND_CONNECTIONS, { color: '#0f0' });
         drawLandmarks(canvasCtx, adjustedLandmarks, { color: '#0f0', radius: 3 });
 
