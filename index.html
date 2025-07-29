@@ -215,13 +215,11 @@
         const landmarks = results.multiHandLandmarks[0];
         currentLandmarks = landmarks;
 
-        // Adjust the landmarks position based on the canvas size and video element size
         const adjustedLandmarks = landmarks.map(pt => ({
           x: pt.x * canvasElement.width,
           y: pt.y * canvasElement.height,
         }));
 
-        // Draw the connectors and landmarks with adjusted coordinates
         drawConnectors(canvasCtx, adjustedLandmarks, HAND_CONNECTIONS, { color: '#0f0' });
         drawLandmarks(canvasCtx, adjustedLandmarks, { color: '#0f0', radius: 3 });
 
@@ -237,7 +235,12 @@
         }
 
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-        top3List.innerHTML = sorted.slice(0, 3).map(([l, s]) => `<li>${l} (${(s*100).toFixed(1)}%)</li>`).join('');
+        if (sorted.length) {
+          top3List.innerHTML = sorted.slice(0, 3).map(([l, s]) => `<li>${l} (${(s*100).toFixed(1)}%)</li>`).join('');
+        } else {
+          top3List.innerHTML = '<li>No predictions</li>';
+        }
+
         if (sorted.length && sorted[0][1] > 0.95) {
           const [pred] = sorted[0];
           predictionEl.textContent = `${pred} (${(sorted[0][1] * 100).toFixed(1)}%)`;
