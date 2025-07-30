@@ -23,9 +23,9 @@
       top: 70px;
       left: 50%;
       transform: translateX(-50%);
-      width: 100%;
-      max-width: 640px;
-      height: auto;
+      width: 640px; /* Set width */
+      height: 480px; /* Set height */
+      z-index: 10;
     }
     #controls {
       position: fixed;
@@ -175,7 +175,7 @@
         .then(stream => {
           currentStream = stream;
           videoElement.srcObject = stream;
-
+          console.log("Camera started successfully!"); // Log for debugging
           const loop = async () => {
             if (videoElement.readyState >= 2) await hands.send({ image: videoElement });
             requestAnimationFrame(loop);
