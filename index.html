@@ -23,8 +23,9 @@
       top: 70px;
       left: 50%;
       transform: translateX(-50%);
-      width: 640px; /* Set width */
-      height: 480px; /* Set height */
+      max-width: 640px;
+      width: 90%; /* Set width */
+      height: auto; /* Set height */
       z-index: 10;
     }
     #controls {
@@ -81,11 +82,30 @@
       border-radius: 10px;
       font-size: 0.9em;
       max-width: 180px;
-    }
-    #top3List {
-      list-style: none;
-      padding-left: 0;
-      margin: 5px 0 0 0;
+        @media (max-width: 768px) {
+      #controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+        position: static;
+        background: transparent;
+         display: flex;           
+    flex-wrap: wrap;         
+    justify-content: center; 
+    margin: 5px 0;           
+    padding: 5px;
+  }
+
+  #controls select,
+  #controls button {
+    flex: 1 1 45%;  
+    margin: 5px;
+  }
+
+  #canvas {
+    width: 100%; 
+    height: auto;
+  }
+}
     }
   </style>
 </head>
