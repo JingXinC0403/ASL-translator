@@ -82,30 +82,31 @@
       border-radius: 10px;
       font-size: 0.9em;
       max-width: 180px;
-        @media (max-width: 768px) {
+    }
+
+    @media (max-width: 768px) {
       #controls {
         flex-direction: row;
         flex-wrap: wrap;
         position: static;
         background: transparent;
-         display: flex;           
-    flex-wrap: wrap;         
-    justify-content: center; 
-    margin: 5px 0;           
-    padding: 5px;
-  }
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 5px 0;
+        padding: 5px;
+      }
 
-  #controls select,
-  #controls button {
-    flex: 1 1 45%;  
-    margin: 5px;
-  }
+      #controls select,
+      #controls button {
+        flex: 1 1 45%;
+        margin: 5px;
+      }
 
-  #canvas {
-    width: 100%; 
-    height: auto;
-  }
-}
+      #canvas {
+        width: 100%;
+        height: auto;
+      }
     }
   </style>
 </head>
