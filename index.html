@@ -23,9 +23,10 @@
       top: 70px;
       left: 50%;
       transform: translateX(-50%);
-      width: 100%;
       max-width: 640px;
-      height: auto;
+      width: 90%; /* Set width */
+      height: auto; /* Set height */
+      z-index: 10;
     }
     #controls {
       position: fixed;
@@ -82,10 +83,30 @@
       font-size: 0.9em;
       max-width: 180px;
     }
-    #top3List {
-      list-style: none;
-      padding-left: 0;
-      margin: 5px 0 0 0;
+
+    @media (max-width: 768px) {
+      #controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+        position: static;
+        background: transparent;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 5px 0;
+        padding: 5px;
+      }
+
+      #controls select,
+      #controls button {
+        flex: 1 1 45%;
+        margin: 5px;
+      }
+
+      #canvas {
+        width: 100%;
+        height: auto;
+      }
     }
   </style>
 </head>
@@ -175,7 +196,7 @@
         .then(stream => {
           currentStream = stream;
           videoElement.srcObject = stream;
-
+          console.log("Camera started successfully!"); // Log for debugging
           const loop = async () => {
             if (videoElement.readyState >= 2) await hands.send({ image: videoElement });
             requestAnimationFrame(loop);
@@ -187,20 +208,6 @@
           console.error(err);
         });
     }
-
-    function resizeCanvas() {
-      canvasElement.width = videoElement.videoWidth;
-      canvasElement.height = videoElement.videoHeight;
-    }
-
-    videoElement.onloadedmetadata = () => {
-      resizeCanvas();
-      const loop = async () => {
-        if (videoElement.readyState >= 2) await hands.send({ image: videoElement });
-        requestAnimationFrame(loop);
-      };
-      loop();
-    };
 
     fetch("asl_data.json").then(res => res.json()).then(data => {
       trainingData = data;
@@ -214,16 +221,10 @@
       if (results.multiHandLandmarks?.length) {
         const landmarks = results.multiHandLandmarks[0];
         currentLandmarks = landmarks;
+        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
+        drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
 
-        const adjustedLandmarks = landmarks.map(pt => ({
-          x: pt.x * canvasElement.width,
-          y: pt.y * canvasElement.height,
-        }));
-
-        drawConnectors(canvasCtx, adjustedLandmarks, HAND_CONNECTIONS, { color: '#0f0' });
-        drawLandmarks(canvasCtx, adjustedLandmarks, { color: '#0f0', radius: 3 });
-
-        const input = normalizeLandmarks(adjustedLandmarks);
+        const input = normalizeLandmarks(landmarks);
         const scores = {};
         for (const label in trainingData) {
           let maxSim = -1;
@@ -236,7 +237,7 @@
 
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
         top3List.innerHTML = sorted.slice(0, 3).map(([l, s]) => `<li>${l} (${(s*100).toFixed(1)}%)</li>`).join('');
-        if (sorted.length && sorted[0][1] > 0.95) {
+        if (sorted.length && sorted[0][1] > 0.975) {
           const [pred] = sorted[0];
           predictionEl.textContent = `${pred} (${(sorted[0][1] * 100).toFixed(1)}%)`;
           const now = Date.now();
