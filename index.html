@@ -224,7 +224,16 @@
         drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
         drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
 
-        const input = normalizeLandmarks(landmarks);
+        const scaleX = canvasElement.width / videoElement.videoWidth;
+        const scaleY = canvasElement.height / videoElement.videoHeight;
+
+        const scaledLandmarks = landmarks.map(landmark => ({
+          x: landmark.x * videoElement.videoWidth * scaleX,
+          y: landmark.y * videoElement.videoHeight * scaleY,
+          z: landmark.z
+        }));
+
+        const input = normalizeLandmarks(scaledLandmarks);
         const scores = {};
         for (const label in trainingData) {
           let maxSim = -1;
