@@ -221,17 +221,20 @@
       if (results.multiHandLandmarks?.length) {
         const landmarks = results.multiHandLandmarks[0];
         currentLandmarks = landmarks;
-        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
-        drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
 
+        // Video/Canvas Scaling
         const scaleX = canvasElement.width / videoElement.videoWidth;
         const scaleY = canvasElement.height / videoElement.videoHeight;
 
+        // Correcting the landmark positions based on the video resolution and canvas scaling
         const scaledLandmarks = landmarks.map(landmark => ({
           x: landmark.x * videoElement.videoWidth * scaleX,
           y: landmark.y * videoElement.videoHeight * scaleY,
           z: landmark.z
         }));
+
+        drawConnectors(canvasCtx, scaledLandmarks, HAND_CONNECTIONS, { color: '#0f0' });
+        drawLandmarks(canvasCtx, scaledLandmarks, { color: '#0f0', radius: 3 });
 
         const input = normalizeLandmarks(scaledLandmarks);
         const scores = {};
@@ -245,7 +248,7 @@
         }
 
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-        top3List.innerHTML = sorted.slice(0, 3).map(([l, s]) => `<li>${l} (${(s*100).toFixed(1)}%)</li>`).join('');
+        top3List.innerHTML = sorted.slice(0, 3).map(([l, s]) => `<li>${l} (${(s * 100).toFixed(1)}%)</li>`).join('');
         if (sorted.length && sorted[0][1] > 0.975) {
           const [pred] = sorted[0];
           predictionEl.textContent = `${pred} (${(sorted[0][1] * 100).toFixed(1)}%)`;
