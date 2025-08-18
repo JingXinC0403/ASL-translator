@@ -162,7 +162,7 @@
 
     const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
     hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.5 });
-    drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', radius: 5 }); // Use a clear color and visible radius
+    drawLandmarks(canvasCtx, landmarks, { color: '#12ff0a', radius: 5 }); // Use a clear color and visible radius
 
 
     async function listCameras() {
