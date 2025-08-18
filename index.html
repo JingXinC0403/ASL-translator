@@ -222,6 +222,10 @@
         const landmarks = results.multiHandLandmarks[0];
         currentLandmarks = landmarks;
 
+        // Set canvas dimensions based on video size
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
+
         // Video/Canvas Scaling
         const scaleX = canvasElement.width / videoElement.videoWidth;
         const scaleY = canvasElement.height / videoElement.videoHeight;
