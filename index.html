@@ -7,7 +7,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Morva', serif font;
+      font-family: 'Morva', serif;
       background-color: #000;
       color: white;
       padding-top: 10px;
@@ -162,8 +162,12 @@
 
     const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
     hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.5 });
-    drawLandmarks(canvasCtx, landmarks, { color: '#12ff0a', radius: 5 }); // Use a clear color and visible radius
 
+    // Default hand connections
+    const HAND_CONNECTIONS = [
+      [0, 1], [1, 2], [2, 3], [3, 4], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12],
+      [12, 13], [13, 14], [14, 15], [15, 16], [16, 17], [17, 18], [18, 19], [19, 20]
+    ];
 
     async function listCameras() {
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -228,11 +232,9 @@
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
 
-        // Video/Canvas Scaling
+        // Scaling landmarks based on video resolution
         const scaleX = canvasElement.width / videoElement.videoWidth;
         const scaleY = canvasElement.height / videoElement.videoHeight;
-
-        // Correcting the landmark positions based on the video resolution and canvas scaling
         const scaledLandmarks = landmarks.map(landmark => ({
           x: landmark.x * videoElement.videoWidth * scaleX,
           y: landmark.y * videoElement.videoHeight * scaleY,
@@ -255,6 +257,9 @@
 
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
         top3List.innerHTML = sorted.slice(0, 3).map(([l, s]) => `<li>${l} (${(s * 100).toFixed(1)}%)</li>`).join('');
+        if (!sorted.length) {
+          top3List.innerHTML = '<li>No predictions</li>';
+        }
         if (sorted.length && sorted[0][1] > 0.975) {
           const [pred] = sorted[0];
           predictionEl.textContent = `${pred} (${(sorted[0][1] * 100).toFixed(1)}%)`;
