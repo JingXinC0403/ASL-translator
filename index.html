@@ -147,7 +147,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.min.js"></script>
 
   <script>
-
     const canvasElement = document.getElementById("canvas");
     const videoElement = document.getElementById("video");
     const canvasCtx = canvasElement.getContext("2d");
@@ -168,59 +167,6 @@
       [0, 1], [1, 2], [2, 3], [3, 4], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12],
       [12, 13], [13, 14], [14, 15], [15, 16], [16, 17], [17, 18], [18, 19], [19, 20]
     ];
-
-    async function listCameras() {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const cameraSelect = document.getElementById("cameraSelect");
-      cameraSelect.innerHTML = '';
-      allCameras = devices.filter(d => d.kind === "videoinput");
-      allCameras.forEach((device, i) => {
-        const option = document.createElement("option");
-        option.value = device.deviceId;
-        option.textContent = device.label || `Camera ${i + 1}`;
-        cameraSelect.appendChild(option);
-      });
-      if (allCameras.length) startCamera(allCameras[0].deviceId);
-    }
-
-    function switchCamera() {
-      const selectedId = document.getElementById("cameraSelect").value;
-      currentCameraIndex = allCameras.findIndex(c => c.deviceId === selectedId);
-      startCamera(selectedId);
-    }
-
-    function flipCamera() {
-      currentCameraIndex = (currentCameraIndex + 1) % allCameras.length;
-      const deviceId = allCameras[currentCameraIndex].deviceId;
-      document.getElementById("cameraSelect").selectedIndex = currentCameraIndex;
-      startCamera(deviceId);
-    }
-
-    function startCamera(deviceId) {
-      if (currentStream) currentStream.getTracks().forEach(track => track.stop());
-      navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
-        .then(stream => {
-          currentStream = stream;
-          videoElement.srcObject = stream;
-          console.log("Camera started successfully!");
-          const loop = async () => {
-            if (videoElement.readyState >= 2) await hands.send({ image: videoElement });
-            requestAnimationFrame(loop);
-          };
-          loop();
-        })
-        .catch(err => {
-          alert("Camera access failed. Please allow permission.");
-          console.error(err);
-        });
-    }
-
-    fetch("asl_data.json").then(res => res.json()).then(data => {
-      trainingData = data;
-      document.getElementById("loading").style.display = "none";
-    }).catch(err => {
-      document.getElementById("loading").textContent = "❌ Failed to load model data";
-    });
 
     hands.onResults(results => {
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -281,6 +227,59 @@
           lastPrediction = '';
         }
       }
+    });
+
+    async function listCameras() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameraSelect = document.getElementById("cameraSelect");
+      cameraSelect.innerHTML = '';
+      allCameras = devices.filter(d => d.kind === "videoinput");
+      allCameras.forEach((device, i) => {
+        const option = document.createElement("option");
+        option.value = device.deviceId;
+        option.textContent = device.label || `Camera ${i + 1}`;
+        cameraSelect.appendChild(option);
+      });
+      if (allCameras.length) startCamera(allCameras[0].deviceId);
+    }
+
+    function switchCamera() {
+      const selectedId = document.getElementById("cameraSelect").value;
+      currentCameraIndex = allCameras.findIndex(c => c.deviceId === selectedId);
+      startCamera(selectedId);
+    }
+
+    function flipCamera() {
+      currentCameraIndex = (currentCameraIndex + 1) % allCameras.length;
+      const deviceId = allCameras[currentCameraIndex].deviceId;
+      document.getElementById("cameraSelect").selectedIndex = currentCameraIndex;
+      startCamera(deviceId);
+    }
+
+    function startCamera(deviceId) {
+      if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+      navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
+        .then(stream => {
+          currentStream = stream;
+          videoElement.srcObject = stream;
+          console.log("Camera started successfully!");
+          const loop = async () => {
+            if (videoElement.readyState >= 2) await hands.send({ image: videoElement });
+            requestAnimationFrame(loop);
+          };
+          loop();
+        })
+        .catch(err => {
+          alert("Camera access failed. Please allow permission.");
+          console.error(err);
+        });
+    }
+
+    fetch("asl_data.json").then(res => res.json()).then(data => {
+      trainingData = data;
+      document.getElementById("loading").style.display = "none";
+    }).catch(err => {
+      document.getElementById("loading").textContent = "❌ Failed to load model data";
     });
 
     function normalizeLandmarks(landmarks) {
