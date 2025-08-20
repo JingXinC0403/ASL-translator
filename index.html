@@ -261,6 +261,77 @@
       document.body.classList.toggle("light");
     }
 
+    let lastPrediction = '';
+    let lastPredictionTime = 0;
+    const predictionThreshold = 0.975; // Only update predictions if confidence is high enough
+    const predictionCooldown = 1000; // 1 second cooldown between predictions
+
+    hands.onResults(results => {
+      if (results.multiHandLandmarks?.length) {
+        const landmarks = results.multiHandLandmarks[0];
+    
+    // Normalize the landmarks for gesture recognition
+        const normalizedLandmarks = normalizeLandmarks(landmarks);
+
+    // Score each gesture against the trained data
+        const scores = {};
+        for (const label in trainingData) {
+          let maxSim = -1;
+          for (const sample of trainingData[label]) {
+            const sim = cosineSimilarity(normalizedLandmarks, sample);
+            if (sim > maxSim) maxSim = sim;
+          }
+          scores[label] = maxSim;
+        }
+
+    // Sort scores and display top predictions
+        const sortedScores = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+
+    // Display top 3 predictions in the UI
+        top3List.innerHTML = sortedScores.slice(0, 3).map(([label, score]) => {
+          return `<li>${label} (${(score * 100).toFixed(1)}%)</li>`;
+        }).join('');
+
+    // Process prediction if the highest confidence is above the threshold
+        if (sortedScores.length && sortedScores[0][1] > predictionThreshold) {
+          const [pred, confidence] = sortedScores[0];
+
+      // Check if prediction has changed or if cooldown has passed
+          const currentTime = Date.now();
+          if (pred !== lastPrediction || currentTime - lastPredictionTime > predictionCooldown) {
+        // Update prediction in UI and append to sentence
+            predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
+        
+            currentSentence += pred.replace("asl_", "").toUpperCase();
+            sentenceEl.textContent = currentSentence;
+            localStorage.setItem("savedSentence", currentSentence);
+
+        // Update last prediction and time
+            lastPrediction = pred;
+            lastPredictionTime = currentTime;
+          }
+    } else {
+      predictionEl.textContent = "-";
+    }
+  }
+});
+
+function normalizeLandmarks(landmarks) {
+  const base = landmarks[0];
+  return landmarks.flatMap(pt => [pt.x - base.x, pt.y - base.y, pt.z - base.z]);
+}
+
+function cosineSimilarity(a, b) {
+  let dot = 0, aMag = 0, bMag = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    aMag += a[i] * a[i];
+    bMag += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
+}
+
+
     // Export training data
     function exportTrainingData() {
       const blob = new Blob([JSON.stringify(trainingData)], { type: "application/json" });
