@@ -202,6 +202,22 @@
           scores[label] = maxSim;
         }
 
+        hands.onResults(results => {
+          if (results.multiHandLandmarks?.length > 0) {
+          const landmarks = results.multiHandLandmarks[0];  // Assuming we're detecting only one hand
+
+    // Clear previous frame
+          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+    // Draw hand landmarks and connections
+          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#0f0' });
+          drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
+
+    // Optionally, normalize and compare landmarks for gesture recognition here
+        }
+      });
+
+
         // Display top 3 predictions
         const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
         top3List.innerHTML = sorted.slice(0, 3).map(([l, s]) => `<li>${l} (${(s * 100).toFixed(1)}%)</li>`).join('');
