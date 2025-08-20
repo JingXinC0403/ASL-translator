@@ -41,7 +41,6 @@
     <button onclick="addSpace()">␣ Space</button>
     <button onclick="toggleTheme()">🌙/☀️ Theme</button>
   </div>
-
   <div id="output">
     <p><strong>Prediction:</strong> <span id="prediction">-</span></p>
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
@@ -66,7 +65,6 @@
     const sentenceEl = document.getElementById("sentence");
     sentenceEl.textContent = currentSentence;
 
-    // Initialize MediaPipe Hands
     const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
     hands.setOptions({
       maxNumHands: 1,
@@ -80,10 +78,9 @@
       [12, 13], [13, 14], [14, 15], [15, 16], [16, 17], [17, 18], [18, 19], [19, 20]
     ];
 
-    // Single hands.onResults callback for continuous tracking
     hands.onResults(results => {
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
+      
       if (results.multiHandLandmarks?.length) {
         const landmarks = results.multiHandLandmarks[0];
         currentLandmarks = landmarks;
@@ -109,7 +106,7 @@
         const input = normalizeLandmarks(scaledLandmarks);
         const scores = {};
 
-        // Compare normalized landmarks with training data for gesture prediction
+        // Compare input against all stored training data
         for (const label in trainingData) {
           let maxSim = -1;
           for (const sample of trainingData[label]) {
@@ -126,11 +123,10 @@
           top3List.innerHTML = '<li>No predictions</li>';
         }
 
-        // Update the prediction if the score is above threshold
         if (sorted.length && sorted[0][1] > 0.975) {
           const [pred] = sorted[0];
           predictionEl.textContent = `${pred} (${(sorted[0][1] * 100).toFixed(1)}%)`;
-
+          
           const now = Date.now();
           if (pred !== lastPrediction || now - lastAddTime > 1000) {
             currentSentence += pred.replace("asl_", "").toUpperCase();
@@ -161,7 +157,21 @@
       if (allCameras.length) startCamera(allCameras[0].deviceId);
     }
 
-    // Start selected camera
+    // Switch camera
+    function switchCamera() {
+      const selectedId = document.getElementById("cameraSelect").value;
+      startCamera(selectedId);
+    }
+
+    // Flip camera
+    function flipCamera() {
+      const currentCameraIndex = document.getElementById("cameraSelect").selectedIndex;
+      const allCameras = document.getElementById("cameraSelect").options;
+      const newIndex = (currentCameraIndex + 1) % allCameras.length;
+      startCamera(allCameras[newIndex].value);
+    }
+
+    // Start camera stream
     function startCamera(deviceId) {
       navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
         .then(stream => {
@@ -176,19 +186,6 @@
           alert("Camera access failed. Please allow permission.");
           console.error(err);
         });
-    }
-
-    // Camera switching
-    function switchCamera() {
-      const selectedId = document.getElementById("cameraSelect").value;
-      startCamera(selectedId);
-    }
-
-    function flipCamera() {
-      const currentCameraIndex = document.getElementById("cameraSelect").selectedIndex;
-      const allCameras = document.getElementById("cameraSelect").options;
-      const newIndex = (currentCameraIndex + 1) % allCameras.length;
-      startCamera(allCameras[newIndex].value);
     }
 
     // Normalize landmarks
@@ -208,7 +205,7 @@
       return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
     }
 
-    // Gesture training function
+    // Train gesture
     function trainGesture() {
       const label = document.getElementById("labelInput").value.trim().toLowerCase();
       if (!label || !currentLandmarks) return alert("Enter label and show hand.");
@@ -234,103 +231,34 @@
       }, 200);
     }
 
-    // Speak the sentence
+    // Speak sentence
     function speakSentence() {
       const utter = new SpeechSynthesisUtterance(currentSentence);
       speechSynthesis.speak(utter);
     }
 
-    // Handle backspace and space actions
+    // Backspace
     function backspace() {
       currentSentence = currentSentence.slice(0, -1);
       sentenceEl.textContent = currentSentence;
     }
 
+    // Clear sentence
     function clearSentence() {
       currentSentence = '';
       sentenceEl.textContent = '';
     }
 
+    // Add space
     function addSpace() {
       currentSentence += ' ';
       sentenceEl.textContent = currentSentence;
     }
 
-    // Toggle theme
+    // Toggle light/dark mode
     function toggleTheme() {
       document.body.classList.toggle("light");
     }
-
-    let lastPrediction = '';
-    let lastPredictionTime = 0;
-    const predictionThreshold = 0.975; // Only update predictions if confidence is high enough
-    const predictionCooldown = 1000; // 1 second cooldown between predictions
-
-    hands.onResults(results => {
-      if (results.multiHandLandmarks?.length) {
-        const landmarks = results.multiHandLandmarks[0];
-    
-    // Normalize the landmarks for gesture recognition
-        const normalizedLandmarks = normalizeLandmarks(landmarks);
-
-    // Score each gesture against the trained data
-        const scores = {};
-        for (const label in trainingData) {
-          let maxSim = -1;
-          for (const sample of trainingData[label]) {
-            const sim = cosineSimilarity(normalizedLandmarks, sample);
-            if (sim > maxSim) maxSim = sim;
-          }
-          scores[label] = maxSim;
-        }
-
-    // Sort scores and display top predictions
-        const sortedScores = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-
-    // Display top 3 predictions in the UI
-        top3List.innerHTML = sortedScores.slice(0, 3).map(([label, score]) => {
-          return `<li>${label} (${(score * 100).toFixed(1)}%)</li>`;
-        }).join('');
-
-    // Process prediction if the highest confidence is above the threshold
-        if (sortedScores.length && sortedScores[0][1] > predictionThreshold) {
-          const [pred, confidence] = sortedScores[0];
-
-      // Check if prediction has changed or if cooldown has passed
-          const currentTime = Date.now();
-          if (pred !== lastPrediction || currentTime - lastPredictionTime > predictionCooldown) {
-        // Update prediction in UI and append to sentence
-            predictionEl.textContent = `${pred} (${(confidence * 100).toFixed(1)}%)`;
-        
-            currentSentence += pred.replace("asl_", "").toUpperCase();
-            sentenceEl.textContent = currentSentence;
-            localStorage.setItem("savedSentence", currentSentence);
-
-        // Update last prediction and time
-            lastPrediction = pred;
-            lastPredictionTime = currentTime;
-          }
-    } else {
-      predictionEl.textContent = "-";
-    }
-  }
-});
-
-function normalizeLandmarks(landmarks) {
-  const base = landmarks[0];
-  return landmarks.flatMap(pt => [pt.x - base.x, pt.y - base.y, pt.z - base.z]);
-}
-
-function cosineSimilarity(a, b) {
-  let dot = 0, aMag = 0, bMag = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    aMag += a[i] * a[i];
-    bMag += b[i] * b[i];
-  }
-  return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
-}
-
 
     // Export training data
     function exportTrainingData() {
@@ -341,6 +269,7 @@ function cosineSimilarity(a, b) {
       a.click();
     }
 
+    // Download training data
     function downloadData() {
       exportTrainingData();
     }
@@ -357,7 +286,22 @@ function cosineSimilarity(a, b) {
       reader.readAsText(file);
     });
 
-    // Initialize the camera on load
+    // Event listeners for keyboard shortcuts
+    window.addEventListener("keydown", e => {
+      if (e.key === 'Backspace') backspace();
+      if (e.key === ' ') {
+        e.preventDefault();
+        addSpace();
+      }
+      if (e.key === 'Escape') clearSentence();
+    });
+
+    // Save sentence to localStorage
+    window.addEventListener("beforeunload", () => {
+      localStorage.setItem("savedSentence", currentSentence);
+    });
+
+    // Initialize cameras
     window.addEventListener("DOMContentLoaded", listCameras);
   </script>
 </body>
