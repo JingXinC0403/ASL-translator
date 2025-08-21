@@ -8,7 +8,8 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Morva', serif; background-color: #000; color: white; padding-top: 10px; min-height: 100vh; transition: background 0.3s, color 0.3s; }
     body.light { background-color: #f0f0f0; color: black; }
-    #video, #canvas { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); max-width: 640px; width: 90%; height: auto; z-index: 10; }
+    .container { position: relative; display: inline-block; }
+    video, canvas { position: absolute; top: 0; left: 0; z-index: 10; }
     #controls { position: fixed; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 6px; padding: 10px; background-color: rgba(0, 0, 0, 0.6); border-radius: 10px; z-index: 11; max-height: 90vh; overflow-y: auto; }
     #controls button, #cameraSelect { padding: 10px; font-size: 1em; border-radius: 8px; background-color: #444; color: white; cursor: pointer; border: none; }
     #controls button:hover, #cameraSelect:hover { background-color: #666; }
@@ -23,8 +24,11 @@
   </style>
 </head>
 <body>
-  <video id="video" autoplay playsinline></video>
-  <canvas id="canvas"></canvas>
+  <div class="container">
+    <video class="input_video" autoplay playsinline></video>
+    <canvas class="output_canvas" width="1280px" height="720px"></canvas>
+  </div>
+  
   <div id="controls">
     <h2>ASL Translator</h2>
     <input type="file" id="fileLoader" accept="application/json" />
@@ -41,23 +45,27 @@
     <button onclick="addSpace()">␣ Space</button>
     <button onclick="toggleTheme()">🌙/☀️ Theme</button>
   </div>
+  
   <div id="output">
     <p><strong>Prediction:</strong> <span id="prediction">-</span></p>
     <p><strong>Sentence:</strong> <span id="sentence"></span></p>
   </div>
+  
   <div id="topPredictions">
     <strong>Top 3 Predictions</strong>
     <ul id="top3List"></ul>
   </div>
+  
   <div id="loading">Loading ASL model data...</div>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
   <script>
-    const canvasElement = document.getElementById("canvas");
-    const videoElement = document.getElementById("video");
-    const canvasCtx = canvasElement.getContext("2d");
+    const videoElement = document.querySelector('.input_video');
+    const canvasElement = document.querySelector('.output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
     let trainingData = {}, currentLandmarks = null, lastPrediction = '', lastAddTime = 0;
     let currentSentence = localStorage.getItem("savedSentence") || '';
     const top3List = document.getElementById("top3List");
@@ -65,133 +73,45 @@
     const sentenceEl = document.getElementById("sentence");
     sentenceEl.textContent = currentSentence;
 
-    const hands = new Hands({ 
-      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+    // Hand landmark detection setup
+    const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
     hands.setOptions({
-      maxNumHands: 1,
+      maxNumHands: 2,
       modelComplexity: 1,
-      minDetectionConfidence: 0.8,
+      minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5
     });
 
+    hands.onResults(results => {
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+      if (results.multiHandLandmarks) {
+        for (const landmarks of results.multiHandLandmarks) {
+          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 5});
+          drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 2});
+        }
+      }
+    });
+
+    // Camera setup
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({image: videoElement});
+      },
+      width: 1280,
+      height: 720
+    });
+    camera.start();
+
+    // Hand connection setup
     const HAND_CONNECTIONS = [
       [0, 1], [1, 2], [2, 3], [3, 4], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12],
       [12, 13], [13, 14], [14, 15], [15, 16], [16, 17], [17, 18], [18, 19], [19, 20]
     ];
 
-    hands.onResults(results => {
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      
-      if (results.multiHandLandmarks?.length) {
-        const landmarks = results.multiHandLandmarks[0];
-        currentLandmarks = landmarks;
-
-        // Set canvas dimensions based on video size
-        canvasElement.width = videoElement.videoWidth;
-        canvasElement.height = videoElement.videoHeight;
-
-        // Scaling landmarks based on video resolution
-        const scaleX = canvasElement.width / videoElement.videoWidth;
-        const scaleY = canvasElement.height / videoElement.videoHeight;
-        const scaledLandmarks = landmarks.map(landmark => ({
-          x: landmark.x * videoElement.videoWidth * scaleX,
-          y: landmark.y * videoElement.videoHeight * scaleY,
-          z: landmark.z
-        }));
-
-        // Draw connectors and landmarks on the canvas
-        drawConnectors(canvasCtx, scaledLandmarks, HAND_CONNECTIONS, { color: '#0f0' });
-        drawLandmarks(canvasCtx, scaledLandmarks, { color: '#0f0', radius: 3 });
-
-        // Normalize landmarks for gesture recognition
-        const input = normalizeLandmarks(scaledLandmarks);
-        const scores = {};
-
-        // Compare input against all stored training data
-        for (const label in trainingData) {
-          let maxSim = -1;
-          for (const sample of trainingData[label]) {
-            const sim = cosineSimilarity(input, sample);
-            if (sim > maxSim) maxSim = sim;
-          }
-          scores[label] = maxSim;
-        }
-
-        // Display top 3 predictions
-        const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-        top3List.innerHTML = sorted.slice(0, 3).map(([l, s]) => `<li>${l} (${(s * 100).toFixed(1)}%)</li>`).join('');
-        if (!sorted.length) {
-          top3List.innerHTML = '<li>No predictions</li>';
-        }
-
-        if (sorted.length && sorted[0][1] > 0.975) {
-          const [pred] = sorted[0];
-          predictionEl.textContent = `${pred} (${(sorted[0][1] * 100).toFixed(1)}%)`;
-          
-          const now = Date.now();
-          if (pred !== lastPrediction || now - lastAddTime > 1000) {
-            currentSentence += pred.replace("asl_", "").toUpperCase();
-            sentenceEl.textContent = currentSentence;
-            localStorage.setItem("savedSentence", currentSentence);
-            lastPrediction = pred;
-            lastAddTime = now;
-          }
-        } else {
-          predictionEl.textContent = "-";
-          lastPrediction = '';
-        }
-      }
-    });
-
-    // List available cameras
-    async function listCameras() {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const cameraSelect = document.getElementById("cameraSelect");
-      cameraSelect.innerHTML = '';
-      const allCameras = devices.filter(d => d.kind === "videoinput");
-      allCameras.forEach((device, i) => {
-        const option = document.createElement("option");
-        option.value = device.deviceId;
-        option.textContent = device.label || `Camera ${i + 1}`;
-        cameraSelect.appendChild(option);
-      });
-      if (allCameras.length) startCamera(allCameras[0].deviceId);
-    }
-
-    // Switch camera
-    function switchCamera() {
-      const selectedId = document.getElementById("cameraSelect").value;
-      startCamera(selectedId);
-    }
-
-    // Flip camera
-    function flipCamera() {
-      const currentCameraIndex = document.getElementById("cameraSelect").selectedIndex;
-      const allCameras = document.getElementById("cameraSelect").options;
-      const newIndex = (currentCameraIndex + 1) % allCameras.length;
-      startCamera(allCameras[newIndex].value);
-    }
-
-    // Start camera stream
-    function startCamera(deviceId) {
-      navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
-        .then(stream => {
-          videoElement.srcObject = stream;
-          const loop = async () => {
-            if (videoElement.readyState >= 2) await hands.send({ image: videoElement });
-            requestAnimationFrame(loop);
-          };
-          loop();
-        })
-        .catch(err => {
-          alert("Camera access failed. Please allow permission.");
-          console.error(err);
-        });
-    }
-
-    // Normalize landmarks
+    // Function to normalize landmarks for gesture recognition
     function normalizeLandmarks(landmarks) {
-      const base = landmarks[1];
+      const base = landmarks[0];
       return landmarks.flatMap(pt => [pt.x - base.x, pt.y - base.y, pt.z - base.z]);
     }
 
@@ -206,7 +126,7 @@
       return dot / (Math.sqrt(aMag) * Math.sqrt(bMag));
     }
 
-    // Train gesture
+    // Train gesture function
     function trainGesture() {
       const label = document.getElementById("labelInput").value.trim().toLowerCase();
       if (!label || !currentLandmarks) return alert("Enter label and show hand.");
@@ -217,7 +137,7 @@
       alert(`✅ Trained ${key}`);
     }
 
-    // Start auto-training
+    // Auto train function
     function startAutoTrain(n = 100) {
       const label = document.getElementById("labelInput").value.trim().toLowerCase();
       if (!label) return alert("Enter label.");
@@ -232,36 +152,7 @@
       }, 200);
     }
 
-    // Speak sentence
-    function speakSentence() {
-      const utter = new SpeechSynthesisUtterance(currentSentence);
-      speechSynthesis.speak(utter);
-    }
-
-    // Backspace
-    function backspace() {
-      currentSentence = currentSentence.slice(0, -1);
-      sentenceEl.textContent = currentSentence;
-    }
-
-    // Clear sentence
-    function clearSentence() {
-      currentSentence = '';
-      sentenceEl.textContent = '';
-    }
-
-    // Add space
-    function addSpace() {
-      currentSentence += ' ';
-      sentenceEl.textContent = currentSentence;
-    }
-
-    // Toggle light/dark mode
-    function toggleTheme() {
-      document.body.classList.toggle("light");
-    }
-
-    // Export training data
+    // Export training data function
     function exportTrainingData() {
       const blob = new Blob([JSON.stringify(trainingData)], { type: "application/json" });
       const a = document.createElement("a");
@@ -270,12 +161,11 @@
       a.click();
     }
 
-    // Download training data
+    // Download data function
     function downloadData() {
       exportTrainingData();
     }
 
-    // Load training data from file
     document.getElementById("fileLoader").addEventListener("change", e => {
       const file = e.target.files[0];
       if (!file) return;
@@ -287,22 +177,16 @@
       reader.readAsText(file);
     });
 
-    // Event listeners for keyboard shortcuts
     window.addEventListener("keydown", e => {
       if (e.key === 'Backspace') backspace();
-      if (e.key === ' ') {
-        e.preventDefault();
-        addSpace();
-      }
+      if (e.key === ' ') { e.preventDefault(); addSpace(); }
       if (e.key === 'Escape') clearSentence();
     });
 
-    // Save sentence to localStorage
     window.addEventListener("beforeunload", () => {
       localStorage.setItem("savedSentence", currentSentence);
     });
 
-    // Initialize cameras
     window.addEventListener("DOMContentLoaded", listCameras);
   </script>
 </body>
