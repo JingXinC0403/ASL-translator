@@ -40,10 +40,10 @@
     <select id="cameraSelect" onchange="switchCamera()"></select>
     <button onclick="flipCamera()">🔄 Flip Camera</button>
     <button onclick="speakSentence()">🔊 Speak</button>
-    <button onclick="backspace()">⬅️ Backspace</button>
+    <button onclick="backspace()">⬅ Backspace</button>
     <button onclick="clearSentence()">❌ Clear</button>
     <button onclick="addSpace()">␣ Space</button>
-    <button onclick="toggleTheme()">🌙/☀️ Theme</button>
+    <button onclick="toggleTheme()">🌙/☀ Theme</button>
   </div>
   
   <div id="output">
@@ -74,7 +74,7 @@
     sentenceEl.textContent = currentSentence;
 
     // Hand landmark detection setup
-    const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+    const hands = new Hands({locateFile: (file) => https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}});
     hands.setOptions({
       maxNumHands: 2,
       modelComplexity: 1,
@@ -98,7 +98,7 @@
       onFrame: async () => {
         await hands.send({image: videoElement});
       },
-      width: 600,
+      width: 1280,
       height: 720
     });
     camera.start();
@@ -134,7 +134,7 @@
       const norm = normalizeLandmarks(currentLandmarks);
       if (!trainingData[key]) trainingData[key] = [];
       trainingData[key].push(norm);
-      alert(`✅ Trained ${key}`);
+      alert(✅ Trained ${key});
     }
 
     // Auto train function
@@ -187,6 +187,10 @@
       localStorage.setItem("savedSentence", currentSentence);
     });
 
+    window.addEventListener("DOMContentLoaded", listCameras);
+  </script>
+</body>
+</html>
     window.addEventListener("DOMContentLoaded", listCameras);
   </script>
 </body>
