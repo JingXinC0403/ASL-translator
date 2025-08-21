@@ -237,12 +237,18 @@
         const scaleY = canvasElement.height / videoElement.videoHeight;
 
         const scaledLandmarks = landmarks.map(landmark => ({
-          x: landmark.x * videoElement.videoWidth,
-          y: landmark.y * videoElement.videoHeight,
+          x: landmark.x * videoElement.videoWidth || 1),
+          y: landmark.y * videoElement.videoHeight || 1),
           z: landmark.z
         }));
 
         const input = normalizeLandmarks(scaledLandmarks);
+        if (!trainingData || Object.keys(trainingData).length === 0) {
+          predictionEl.textContent = "No training data yet";
+          top3List.innerHTML = "";
+          return;
+        }
+
         const scores = {};
         for (const label in trainingData) {
           let maxSim = -1;
