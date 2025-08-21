@@ -93,15 +93,53 @@
       }
     });
 
-    // Camera setup
-    const camera = new Camera(videoElement, {
-      onFrame: async () => {
-        await hands.send({image: videoElement});
-      },
-      width: 1280,
-      height: 720
-    });
-    camera.start();
+       // List available cameras
+    async function listCameras() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameraSelect = document.getElementById("cameraSelect");
+      cameraSelect.innerHTML = '';
+      const allCameras = devices.filter(d => d.kind === "videoinput");
+      allCameras.forEach((device, i) => {
+        const option = document.createElement("option");
+        option.value = device.deviceId;
+        option.textContent = device.label || Camera ${i + 1};
+        cameraSelect.appendChild(option);
+      });
+      if (allCameras.length) startCamera(allCameras[0].deviceId);
+    }
+
+    // Switch camera
+    function switchCamera() {
+      const selectedId = document.getElementById("cameraSelect").value;
+      startCamera(selectedId);
+    }
+
+    // Flip camera
+    function flipCamera() {
+      const currentCameraIndex = document.getElementById("cameraSelect").selectedIndex;
+      const allCameras = document.getElementById("cameraSelect").options;
+      const newIndex = (currentCameraIndex + 1) % allCameras.length;
+      startCamera(allCameras[newIndex].value);
+    }
+
+    // Start camera stream
+    function startCamera(deviceId) {
+      navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
+        .then(stream => {
+          videoElement.srcObject = stream;
+          const loop = async () => {
+            if (videoElement.readyState >= 2) await hands.send({ image: videoElement });
+            requestAnimationFrame(loop);
+          };
+          loop();
+        })
+        .catch(err => {
+          alert("Camera access failed. Please allow permission.");
+          console.error(err);
+        });
+    }
+
+
 
     // Hand connection setup
     const HAND_CONNECTIONS = [
