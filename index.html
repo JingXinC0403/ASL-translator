@@ -190,7 +190,7 @@
 
     // Normalize landmarks
     function normalizeLandmarks(landmarks) {
-      const base = landmarks[0];
+      const base = landmarks[1];
       return landmarks.flatMap(pt => [pt.x - base.x, pt.y - base.y, pt.z - base.z]);
     }
 
