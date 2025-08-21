@@ -55,6 +55,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.min.js"></script>
 
   <script>
+    const { drawConnectors, drawLandmarks } = window;
     const canvasElement = document.getElementById("canvas");
     const videoElement = document.getElementById("video");
     const canvasCtx = canvasElement.getContext("2d");
@@ -65,26 +66,32 @@
     const sentenceEl = document.getElementById("sentence");
     sentenceEl.textContent = currentSentence;
 
-    const hands = new Hands({ 
-      locateFile: f => https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f} });
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.8,
-      minTrackingConfidence: 0.5
+    const hands = new Hands.Hands({
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
     });
+
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.8,
+        minTrackingConfidence: 0.5
+      });
+
+      hands.onResults(results => {
+    `  canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+        if (results.multiHandLandmarks?.length) {
+          const landmarks = results.multiHandLandmarks[0];
+          drawConnectors(canvasCtx, landmarks, Hands.HAND_CONNECTIONS, { color: '#0f0' });
+          drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
+        }
+      });
 
     const HAND_CONNECTIONS = [
       [0, 1], [1, 2], [2, 3], [3, 4], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12],
       [12, 13], [13, 14], [14, 15], [15, 16], [16, 17], [17, 18], [18, 19], [19, 20]
     ];
 
-    hands.onResults(results => {
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      
-      if (results.multiHandLandmarks?.length) {
-        const landmarks = results.multiHandLandmarks[0];
-        currentLandmarks = landmarks;
 
         // Set canvas dimensions based on video size
         canvasElement.width = videoElement.videoWidth;
