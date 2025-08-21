@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASL Translator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Morva', serif; background-color: #000; color: white; padding-top: 10px; min-height: 100vh; transition: background 0.3s, color 0.3s; }
+    body.light { background-color: #f0f0f0; color: black; }
+    #video, #canvas { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); max-width: 640px; width: 90%; height: auto; z-index: 10; }
+    #controls { position: fixed; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 6px; padding: 10px; background-color: rgba(0, 0, 0, 0.6); border-radius: 10px; z-index: 11; max-height: 90vh; overflow-y: auto; }
+    #controls button, #cameraSelect { padding: 10px; font-size: 1em; border-radius: 8px; background-color: #444; color: white; cursor: pointer; border: none; }
+    #controls button:hover, #cameraSelect:hover { background-color: #666; }
+    #output { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(34, 34, 34, 0.9); padding: 10px 20px; border-radius: 10px; z-index: 10; }
+    #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5em; color: yellow; }
+    #topPredictions { position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 10px; font-size: 0.9em; max-width: 200px; }
+    @media (max-width: 768px) {
+      #controls { flex-direction: row; flex-wrap: wrap; position: static; background: transparent; display: flex; flex-wrap: wrap; justify-content: center; margin: 5px 0; padding: 5px; }
+      #controls select, #controls button { flex: 1 1 45%; margin: 5px; }
+      #canvas { width: 100%; height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
+
+  <div id="controls">
+    <h2>ASL Translator</h2>
+    <input type="file" id="fileLoader" accept="application/json" />
+    <input type="text" id="labelInput" placeholder="Label (e.g., asl_a)" />
+    <button onclick="trainGesture()">Train 📸</button>
+    <button onclick="startAutoTrain(100)">Auto Train 100 ⏳</button>
+    <button onclick="exportTrainingData()">📄 Export</button>
+    <button onclick="downloadData()">📂 Download</button>
+    <select id="cameraSelect" onchange="switchCamera()"></select>
+    <button onclick="flipCamera()">🔄 Flip Camera</button>
+    <button onclick="speakSentence()">🔊 Speak</button>
+    <button onclick="backspace()">⬅️ Backspace</button>
+    <button onclick="clearSentence()">❌ Clear</button>
+    <button onclick="addSpace()">␣ Space</button>
+    <button onclick="toggleTheme()">🌙/☀️ Theme</button>
+  </div>
+
+  <div id="output">
+    <p><strong>Prediction:</strong> <span id="prediction">-</span></p>
+    <p><strong>Sentence:</strong> <span id="sentence"></span></p>
+  </div>
+
+  <div id="topPredictions">
+    <strong>Top 3 Predictions</strong>
+    <ul id="top3List"></ul>
+  </div>
+
+  <div id="loading">Loading ASL model data...</div>
+
+  <!-- Correct Mediapipe CDN imports -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
+
+  <script>
+    // --- DOM refs ---
+    const canvasElement = document.getElementById("canvas");
+    const videoElement = document.getElementById("video");
+    const canvasCtx = canvasElement.getContext("2d");
+
+    const top3List = document.getElementById("top3List");
+    const predictionEl = document.getElementById("prediction");
+    const sentenceEl = document.getElementById("sentence");
+
+    // --- App state ---
+    let trainingData = {};
+    let currentLandmarks = null;
+    let lastPrediction = '';
+    let lastAddTime = 0;
+    let currentSentence = localStorage.getItem("savedSentence") || '';
+    sentenceEl.textContent = currentSentence;
+
+    // --- Mediapipe setup ---
+    const { drawConnectors, drawLandmarks } = window;
+    const hands = new Hands.Hands({
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.8,
+      minTrackingConfidence: 0.5
+    });
+
+    hands.onResults(results => {
+      // Ensure canvas matches video once video is ready
+      if (videoElement.videoWidth && canvasElement.width !== videoElement.videoWidth) {
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
+      }
+
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
+        const landmarks = results.multiHandLandmarks[0];
+        currentLandmarks = landmarks; // normalized 0..1 coords
+
+        // Draw hand
+        drawConnectors(canvasCtx, landmarks, Hands.HAND_CONNECTIONS, { color: '#0f0' });
+        drawLandmarks(canvasCtx, landmarks, { color: '#0f0', radius: 3 });
+
+        // Gesture compare using normalized landmarks
+        const input = normalizeLandmarks(landmarks);
+        const scores = {};
+        for (const label in trainingData) {
+          let maxSim = -1;
+          for (const sample of trainingData[label]) {
+            const sim = cosineSimilarity(input, sample);
+            if (sim > maxSim) maxSim = sim;
+          }
+          scores[label] = maxSim;
+        }
+
+        const sorted = Object.entries(scores).sort((a, b) => (b[1] - a[1]));
+        if (sorted.length) {
+          top3List.innerHTML = sorted.slice(0, 3)
+            .map(([l, s]) => `<li>${l} (${(s * 100).toFixed(1)}%)</li>`) 
+            .join('');
+        } else {
+          top3List.innerHTML = '<li>No predictions</li>';
+        }
+
+        if (sorted.length && sorted[0][1] > 0.975) {
+          const [pred, score] = sorted[0];
+          predictionEl.textContent = `${pred} (${(score * 100).toFixed(1)}%)`;
+
+          const now = Date.now();
+          if (pred !== lastPrediction || now - lastAddTime > 1000) {
+            currentSentence += pred.replace("asl_", "").toUpperCase();
+            sentenceEl.textContent = currentSentence;
+            localStorage.setItem("savedSentence", currentSentence);
+            lastPrediction = pred;
+            lastAddTime = now;
+          }
+        } else {
+          predictionEl.textContent = "-";
+          lastPrediction = '';
+        }
+      } else {
+        top3List.innerHTML = '<li>No hand detected</li>';
+        predictionEl.textContent = '-';
+      }
+    });
+
+    // --- Camera handling ---
+    async function listCameras() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameraSelect = document.getElementById("cameraSelect");
+        cameraSelect.innerHTML = '';
+        const allCameras = devices.filter(d => d.kind === "videoinput");
+        allCameras.forEach((device, i) => {
+          const option = document.createElement("option");
+          option.value = device.deviceId;
+          option.textContent = device.label || `Camera ${i + 1}`;
+          cameraSelect.appendChild(option);
+        });
+        if (allCameras.length) {
+          startCamera(allCameras[0].deviceId);
+        } else {
+          // fallback to default camera if no list available
+          startCamera();
+        }
+      } catch (err) {
+        console.error(err);
+        startCamera();
+      }
+    }
+
+    function switchCamera() {
+      const selectedId = document.getElementById("cameraSelect").value;
+      startCamera(selectedId);
+    }
+
+    function flipCamera() {
+      const sel = document.getElementById("cameraSelect");
+      if (!sel.options.length) return;
+      const newIndex = (sel.selectedIndex + 1) % sel.options.length;
+      sel.selectedIndex = newIndex;
+      startCamera(sel.options[newIndex].value);
+    }
+
+    let currentStream;
+    function stopStream() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
