@@ -224,7 +224,7 @@
 
     hands.onResults(results => {
       canvasElement.width = videoElement.videoWidth;
-      canvasElement.height = videoElement.videoWidth;
+      canvasElement.height = videoElement.videoHeight;
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
       
       if (results.multiHandLandmarks?.length) {
@@ -237,8 +237,8 @@
         const scaleY = canvasElement.height / videoElement.videoHeight;
 
         const scaledLandmarks = landmarks.map(landmark => ({
-          x: landmark.x * videoElement.videoWidth || 1),
-          y: landmark.y * videoElement.videoHeight || 1),
+          x: landmark.x * videoElement.videoWidth || 1,
+          y: landmark.y * videoElement.videoHeight || 1,
           z: landmark.z
         }));
 
